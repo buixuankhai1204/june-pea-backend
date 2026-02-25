@@ -1,14 +1,17 @@
 [package]
-name = "shared"
+name = "identify"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-jsonwebtoken = "10.3.0"
+shared = { path = "../shared" }
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }
+async-trait = { workspace = true }
 uuid = { workspace = true }
+sqlx = { workspace = true }
+argon2 = "0.6.0-rc.7"
+password-hash = "0.6.0-rc.12"

@@ -11,11 +11,17 @@ pub enum AppError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 
-    #[error("Unauthorized")]
-    Unauthorized,
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
 
     #[error("Validation error: {0}")]
     Validation(String),
+
+    #[error("Conflict {0}")]
+    Conflict(String),
+
+    #[error("Internal server error")]
+    InternalServerError,
 }
 
 impl IntoResponse for AppError {
@@ -23,8 +29,10 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             Self::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
             Self::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Database Error".into()),
-            Self::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".into()),
+            Self::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
             Self::Validation(msg) => (StatusCode::BAD_REQUEST, msg),
+            Self::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            Self::InternalServerError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".into()),
         };
 
         let body = Json(json!({
