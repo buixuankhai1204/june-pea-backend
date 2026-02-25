@@ -6,7 +6,6 @@ use axum::{
 };
 use shared::auth::decode_token;
 use shared::AppError;
-// Giả sử dùng jsonwebtoken crate
 
 pub async fn auth_middleware(
     mut req: Request,

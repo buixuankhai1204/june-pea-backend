@@ -6,6 +6,7 @@ use identify::routes::{init, IdentityState};
 use identify::usecase::auth::AuthUsecase;
 use std::env;
 use dotenv::dotenv;
+mod middleware;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -40,7 +41,8 @@ async fn main() -> anyhow::Result<()> {
 
     // 5. Compose Routes (Gộp các module lại)
     let app = Router::new()
-        .nest("/api/v1/auth", init()) // Route đăng ký/đăng nhập
+        .nest("/api/v1/auth", init())
+        .layer(axum::middleware::from_fn(middleware::auth::auth_middleware))// Route đăng ký/đăng nhập
         .with_state(state);
 
     // 6. Start Server

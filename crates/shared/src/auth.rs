@@ -13,7 +13,7 @@ pub struct UserClaims {
 pub fn decode_token(token: &str) -> Result<UserClaims, AppError> {
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret_key_thoi_trang_yame".into());
 
-    let mut validation = Validation::new(Algorithm::HS256);
+    let validation = Validation::new(Algorithm::HS256);
 
     decode::<UserClaims>(
         token,
@@ -41,7 +41,7 @@ pub fn encode_token(claims: UserClaims) -> Result<String, AppError> {
         &jsonwebtoken::Header::default(),
         &claims,
         &jsonwebtoken::EncodingKey::from_secret(secret.as_ref()),
-    ).map_err(|err| {
+    ).map_err(|_err| {
     AppError::InternalServerError
     })
 }
