@@ -1,4 +1,4 @@
-CREATE SCHEMA IF NOT EXISTS identify;
+CREATE SCHEMA IF NOT EXISTS public.identify;
 
 CREATE TABLE identify.users (
                                 id UUID PRIMARY KEY,
