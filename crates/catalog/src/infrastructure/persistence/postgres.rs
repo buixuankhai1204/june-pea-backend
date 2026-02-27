@@ -30,13 +30,13 @@ impl CatalogRepository for PostgresCatalogRepository {
         )
             .fetch_optional(&*self.pool)
             .await?;
-        row
+        Ok(None)
 
         // Logic to map database JSON back to our Domain Structs
         // ... mapping code ...
     }
 
-    async fn list_all(&self, limit: i64, offset: i64) -> Result<Vec<Product>, AppError> {
+    async fn list_all(&self, _limit: i64, _offset: i64) -> Result<Vec<Product>, AppError> {
         todo!()
     }
 }

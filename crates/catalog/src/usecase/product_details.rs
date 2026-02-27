@@ -4,7 +4,6 @@ use crate::domain::catalog_repository::CatalogRepository;
 use crate::domain::cache::CatalogCache;
 use crate::domain::model::ProductWithVariants;
 use shared::AppError;
-use crate::routes::CatalogState;
 
 pub struct GetProductUsecase {
     repo: Arc<dyn CatalogRepository>,
@@ -12,11 +11,11 @@ pub struct GetProductUsecase {
 }
 
 impl GetProductUsecase {
-    fn new(repo: Arc<dyn CatalogRepository>, cache: Arc<dyn CatalogCache>) -> Self {
+    pub(crate) fn new(repo: Arc<dyn CatalogRepository>, cache: Arc<dyn CatalogCache>) -> Self {
         Self { repo, cache }
     }
 
-    async fn execute(&self, slug: &str) -> Result<ProductWithVariants, AppError> {
+    pub(crate) async fn execute(&self, slug: &str) -> Result<ProductWithVariants, AppError> {
         if let Ok(Some(cached_product)) = self.cache.get_product(slug).await {
             tracing::info!("Cache hit for slug: {}", slug);
             return Ok(cached_product);

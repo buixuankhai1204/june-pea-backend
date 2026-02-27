@@ -13,10 +13,10 @@ pub struct RedisCatalogCache {
 impl RedisCatalogCache {
     pub async fn new(redis_url: &str) -> Result<Self, AppError> {
         let client = redis::Client::open(redis_url)
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         let manager = ConnectionManager::new(client).await
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         Ok(Self {
             connection_manager: manager,
@@ -32,12 +32,12 @@ impl CatalogCache for RedisCatalogCache {
         let mut conn = self.connection_manager.clone();
 
         let cached_data: Option<String> = conn.get(&key).await
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         match cached_data {
             Some(json) => {
                 let product = serde_json::from_str(&json)
-                    .map_err(|e| AppError::InternalServerError)?;
+                    .map_err(|_e| AppError::InternalServerError)?;
                 Ok(Some(product))
             }
             None => Ok(None),
@@ -49,11 +49,11 @@ impl CatalogCache for RedisCatalogCache {
         let mut conn = self.connection_manager.clone();
 
         let json = serde_json::to_string(data)
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         // Use SETEX logic: Set value with expiration
         let _: () = conn.set_ex(&key, json, self.ttl_seconds).await
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         Ok(())
     }
@@ -63,7 +63,7 @@ impl CatalogCache for RedisCatalogCache {
         let mut conn = self.connection_manager.clone();
 
         let _: () = conn.del(&key).await
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_e| AppError::InternalServerError)?;
 
         Ok(())
     }

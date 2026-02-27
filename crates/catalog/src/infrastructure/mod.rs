@@ -1,2 +1,2 @@
 pub mod persistence;
-mod cache;
+pub mod cache;
