@@ -9,6 +9,7 @@ use dotenv::dotenv;
 use catalog::infrastructure::cache::redis::RedisCatalogCache;
 use catalog::infrastructure::persistence::postgres::PostgresCatalogRepository;
 use catalog::routes::CatalogUsecase;
+use inventory::routes::InventoryUsecase;
 
 mod middleware;
 
@@ -16,6 +17,7 @@ mod middleware;
 pub struct AppState {
     pub auth_service: Arc<AuthUsecase>,
     pub catalog_service: Arc<CatalogUsecase>, // Placeholder cho CatalogService
+    pub inventory_usecase: Arc<InventoryUsecase>
 }
 
 impl IdentityState for AppState {
@@ -40,6 +42,12 @@ async fn main() -> anyhow::Result<()> {
     let catalog_repo = Arc::new(PostgresCatalogRepository::new(Arc::new(pool.clone()))); // Placeholder cho CatalogRepository
     let auth_usecases = Arc::new(AuthUsecase::new(user_repo));
     let redis = Arc::new(RedisCatalogCache::new(&redis_url).await?);
+    let postgrese_unit_of_work = Arc::new(shared::infrastructure::postgres::PostgresUnitOfWork::new(pool.clone()));
+    let inventory_usecases = Arc::new(inventory::routes::InventoryUsecase::new(
+        Arc::new(inventory::infrastructure::persistence::postgres::PostgresInventoryRepository),
+        postgrese_unit_of_work.clone(),
+    ));
+
     let catalog_usecases = Arc::new(CatalogUsecase::new(
         catalog_repo,
         redis // Placeholder cho CatalogRepository
@@ -48,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         auth_service: auth_usecases,
         catalog_service: catalog_usecases,
+        inventory_usecase: inventory_usecases,
     };
 
     tracing::info!("Running database migrations...");

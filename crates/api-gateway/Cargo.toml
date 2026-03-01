@@ -7,6 +7,7 @@ edition = "2021"
 shared = { path = "../shared" }
 identify = { path = "../identify" }
 catalog = { path = "../catalog" }
+inventory = { path = "../inventory" }
 redis = { workspace = true }
 axum = { workspace = true }
 serde = { workspace = true }
