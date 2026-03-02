@@ -2,9 +2,11 @@ use crate::domain::{
     model::{Order, OrderItem, OrderStatus},
     repository::OrderRepository,
 };
+use crate::infrastructure::persistence::reflect::order_row::OrderRow;
+
 use async_trait::async_trait;
 use shared::{database::DbExecutor, error::AppError, infrastructure::postgres::SqlxExecutor};
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 pub struct PostgresOrderRepository {
@@ -70,7 +72,7 @@ impl OrderRepository for PostgresOrderRepository {
     ) -> Result<Order, AppError> {
         let executor = SqlxExecutor::from_executor(exec);
 
-        let row = sqlx::query(
+        let row = sqlx::query_as::<_, OrderRow>(
             r#"
             SELECT id, customer_id, status, total, created_at
             FROM ordering.orders
@@ -85,24 +87,7 @@ impl OrderRepository for PostgresOrderRepository {
             _ => AppError::InternalServerError,
         })?;
 
-        Ok(Order {
-            id: row
-                .try_get("id")
-                .map_err(|_| AppError::InternalServerError)?,
-            customer_id: row
-                .try_get("customer_id")
-                .map_err(|_| AppError::InternalServerError)?,
-            status: status_from_str(
-                &row.try_get::<String, _>("status")
-                    .map_err(|_| AppError::InternalServerError)?,
-            ),
-            total: row
-                .try_get("total")
-                .map_err(|_| AppError::InternalServerError)?,
-            created_at: row
-                .try_get::<chrono::DateTime<chrono::Utc>, _>("created_at")
-                .map_err(|_| AppError::InternalServerError)?,
-        })
+        Ok(row.into())
     }
 
     async fn update_order_status(
@@ -133,14 +118,6 @@ fn status_to_str(status: &OrderStatus) -> &'static str {
         OrderStatus::Pending => "pending",
         OrderStatus::Cancelled => "cancelled",
         OrderStatus::Completed => "completed",
-    }
-}
-
-fn status_from_str(s: &str) -> OrderStatus {
-    match s {
-        "cancelled" => OrderStatus::Cancelled,
-        "completed" => OrderStatus::Completed,
-        _ => OrderStatus::Pending,
     }
 }
 

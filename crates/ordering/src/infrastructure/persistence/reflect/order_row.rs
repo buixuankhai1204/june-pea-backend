@@ -1,0 +1,28 @@
+use crate::domain::model::{Order, OrderStatus};
+use chrono::{DateTime, Utc};
+use uuid::Uuid;
+
+#[derive(sqlx::FromRow)]
+pub struct OrderRow {
+    pub id: Uuid,
+    pub customer_id: Uuid,
+    pub status: String,
+    pub total: i64,
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<OrderRow> for Order {
+    fn from(row: OrderRow) -> Self {
+        Self {
+            id: row.id,
+            customer_id: row.customer_id,
+            status: match row.status.as_str() {
+                "cancelled" => OrderStatus::Cancelled,
+                "completed" => OrderStatus::Completed,
+                _ => OrderStatus::Pending,
+            },
+            total: row.total,
+            created_at: row.created_at,
+        }
+    }
+}
