@@ -93,7 +93,7 @@ impl OrderRepository for PostgresOrderRepository {
                 .try_get("customer_id")
                 .map_err(|_| AppError::InternalServerError)?,
             status: status_from_str(
-                row.try_get::<&str, _>("status")
+                &row.try_get::<String, _>("status")
                     .map_err(|_| AppError::InternalServerError)?,
             ),
             total: row

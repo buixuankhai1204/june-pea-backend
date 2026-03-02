@@ -50,8 +50,6 @@ impl UnitOfWork for PostgresUnitOfWork {
 
         let mut executor = SqlxExecutor { tx };
 
-        // The 'f' is called here, and the resulting future is awaited.
-        // The E0521 error disappears because 'f' is consumed here.
         let result = f(&mut executor).await;
 
         match result {

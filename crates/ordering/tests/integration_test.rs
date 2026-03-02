@@ -1,207 +1,280 @@
-//! Integration tests for ordering usecases.
-//! Uses an in-memory MockOrderRepository — no database required.
+//! E2E tests for ordering usecases.
+//!
+//! Each test runs against a real Postgres database provisioned by `#[sqlx::test]`.
+//! All migrations in `migrations/` are applied before each test, and the
+//! database is dropped afterward — giving full isolation with no mocks.
+//!
+//! A `TxContext` helper wraps assertions inside a transaction that is
+//! always rolled back, so read-backs inside the same test see the
+//! committed data from the usecase without polluting other tests.
+//!
+//! Run: `cargo test -p ordering --test e2e_test`
+//!   (requires DATABASE_URL in .env pointing to a running Postgres instance)
 
-use async_trait::async_trait;
-use futures::future::BoxFuture;
-use ordering::domain::{
-    model::{NewOrderItem, Order, OrderItem, OrderStatus},
-    repository::OrderRepository,
-};
-use ordering::usecase::{cancel_order::CancelOrderUsecase, place_order::PlaceOrderUsecase};
-use shared::{
-    database::{DbExecutor, UnitOfWork},
-    error::AppError,
-};
-use std::sync::{Arc, Mutex};
+use sqlx::{PgPool, Row};
+use std::sync::Arc;
 use uuid::Uuid;
 
+use ordering::{
+    domain::model::{NewOrderItem, OrderStatus},
+    infrastructure::persistence::postgres::PostgresOrderRepository,
+    usecase::{
+        cancel_order::CancelOrderUsecase, get_order::GetOrderUsecase,
+        place_order::PlaceOrderUsecase,
+    },
+};
+use shared::{error::AppError, infrastructure::postgres::PostgresUnitOfWork};
+
 // ─────────────────────────────────────────────
-// In-memory mock repository
+// Test helpers
 // ─────────────────────────────────────────────
 
-#[derive(Default)]
-struct MockStore {
-    orders: Vec<Order>,
+/// Holds the real infrastructure wired together for a single test.
+struct TestContext {
+    place_order: PlaceOrderUsecase,
+    cancel_order: CancelOrderUsecase,
+    get_order: GetOrderUsecase,
 }
 
-struct MockOrderRepository {
-    store: Arc<Mutex<MockStore>>,
-}
+impl TestContext {
+    fn new(pool: PgPool) -> Self {
+        let repo = Arc::new(PostgresOrderRepository::new(pool.clone()));
+        let uow = Arc::new(PostgresUnitOfWork::new(pool.clone()));
 
-impl MockOrderRepository {
-    fn new() -> Self {
         Self {
-            store: Arc::new(Mutex::new(MockStore::default())),
+            place_order: PlaceOrderUsecase::new(repo.clone(), uow.clone()),
+            cancel_order: CancelOrderUsecase::new(repo.clone(), uow.clone()),
+            get_order: GetOrderUsecase::new(pool.clone(), repo.clone()),
         }
     }
 }
 
-#[async_trait]
-impl OrderRepository for MockOrderRepository {
-    async fn create_order(
-        &self,
-        _exec: &mut dyn DbExecutor,
-        order: &Order,
-        _items: &[OrderItem],
-    ) -> Result<(), AppError> {
-        self.store.lock().unwrap().orders.push(order.clone());
-        Ok(())
-    }
+// Seed a real user into identify.users so FK on orders.customer_id is valid.
+async fn seed_customer(pool: &PgPool) -> Uuid {
+    let id = Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO identify.users (id, email, password_hash, role)
+         VALUES ($1, $2, 'hash', 'customer')",
+    )
+    .bind(id)
+    .bind(format!("test-{}@example.com", id))
+    .execute(pool)
+    .await
+    .expect("seed customer");
+    id
+}
 
-    async fn get_order_by_id(
-        &self,
-        _exec: &mut dyn DbExecutor,
-        id: Uuid,
-    ) -> Result<Order, AppError> {
-        self.store
-            .lock()
-            .unwrap()
-            .orders
-            .iter()
-            .find(|o| o.id == id)
-            .cloned()
-            .ok_or_else(|| AppError::NotFound(format!("Order {} not found", id)))
-    }
+// Seed a product variant so FK on order_items.variant_id is valid.
+async fn seed_variant(pool: &PgPool) -> Uuid {
+    let cat_id = Uuid::new_v4();
+    let product_id = Uuid::new_v4();
+    let variant_id = Uuid::new_v4();
 
-    async fn update_order_status(
-        &self,
-        _exec: &mut dyn DbExecutor,
-        id: Uuid,
-        status: OrderStatus,
-    ) -> Result<(), AppError> {
-        let mut store = self.store.lock().unwrap();
-        let order = store
-            .orders
-            .iter_mut()
-            .find(|o| o.id == id)
-            .ok_or_else(|| AppError::NotFound(format!("Order {} not found", id)))?;
-        order.status = status;
-        Ok(())
-    }
+    sqlx::query("INSERT INTO catalog.categories (id, name, slug) VALUES ($1, 'Cat', $2)")
+        .bind(cat_id)
+        .bind(format!("cat-{}", cat_id))
+        .execute(pool)
+        .await
+        .expect("seed category");
+
+    sqlx::query(
+        "INSERT INTO catalog.products (id, category_id, name, slug)
+         VALUES ($1, $2, 'Product', $3)",
+    )
+    .bind(product_id)
+    .bind(cat_id)
+    .bind(format!("prod-{}", product_id))
+    .execute(pool)
+    .await
+    .expect("seed product");
+
+    sqlx::query(
+        "INSERT INTO catalog.product_variants (id, product_id, sku, name, attributes, base_price)
+         VALUES ($1, $2, $3, 'Variant', '{}', 10.00)",
+    )
+    .bind(variant_id)
+    .bind(product_id)
+    .bind(format!("sku-{}", variant_id))
+    .execute(pool)
+    .await
+    .expect("seed variant");
+
+    variant_id
 }
 
 // ─────────────────────────────────────────────
-// No-op UnitOfWork: runs the closure directly without a real transaction
+// PlaceOrder E2E tests
 // ─────────────────────────────────────────────
 
-struct NoOpExecutor;
-impl DbExecutor for NoOpExecutor {}
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_place_order_persists_order_and_items(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let customer = seed_customer(&pool).await;
+    let variant = seed_variant(&pool).await;
 
-struct NoOpUnitOfWork;
-
-#[async_trait]
-impl UnitOfWork for NoOpUnitOfWork {
-    async fn run_atomic(
-        &self,
-        f: Box<
-            dyn for<'a> FnOnce(&'a mut dyn DbExecutor) -> BoxFuture<'a, Result<(), AppError>>
-                + Send,
-        >,
-    ) -> Result<(), AppError> {
-        let mut exec = NoOpExecutor;
-        f(&mut exec).await
-    }
-}
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-
-fn make_repo() -> Arc<MockOrderRepository> {
-    Arc::new(MockOrderRepository::new())
-}
-
-fn make_uow() -> Arc<NoOpUnitOfWork> {
-    Arc::new(NoOpUnitOfWork)
-}
-
-fn item(quantity: i32) -> NewOrderItem {
-    NewOrderItem {
-        variant_id: Uuid::new_v4(),
-        quantity,
-        unit_price: 1000,
-    }
-}
-
-// ─────────────────────────────────────────────
-// PlaceOrder usecase tests
-// ─────────────────────────────────────────────
-
-#[tokio::test]
-async fn place_order_stores_order_and_returns_id() {
-    let repo = make_repo();
-    let uow = make_uow();
-    let usecase = PlaceOrderUsecase::new(repo.clone() as Arc<dyn OrderRepository>, uow);
-
-    let customer = Uuid::new_v4();
-    let order_id = usecase
-        .execute(customer, vec![item(2), item(3)])
+    let order_id = ctx
+        .place_order
+        .execute(
+            customer,
+            vec![NewOrderItem {
+                variant_id: variant,
+                quantity: 2,
+                unit_price: 500,
+            }],
+        )
         .await
         .unwrap();
 
-    let store = repo.store.lock().unwrap();
-    assert_eq!(store.orders.len(), 1);
-    assert_eq!(store.orders[0].id, order_id);
-    assert_eq!(store.orders[0].customer_id, customer);
-    assert_eq!(store.orders[0].status, OrderStatus::Pending);
-    assert_eq!(store.orders[0].total, 5000);
+    // Verify persisted data via a read-only transaction (always rolled back)
+    let mut tx = pool.begin().await.unwrap();
+
+    let row = sqlx::query("SELECT status, total FROM ordering.orders WHERE id = $1")
+        .bind(order_id)
+        .fetch_one(&mut *tx)
+        .await
+        .unwrap();
+
+    let status: String = row.try_get("status").unwrap();
+    let total: i64 = row.try_get("total").unwrap();
+    assert_eq!(status, "pending");
+    assert_eq!(total, 1000); // 2 * 500
+
+    let item_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM ordering.order_items WHERE order_id = $1")
+            .bind(order_id)
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+    assert_eq!(item_count, 1);
+
+    tx.rollback().await.unwrap();
 }
 
-#[tokio::test]
-async fn place_order_with_empty_items_fails() {
-    let usecase = PlaceOrderUsecase::new(make_repo() as Arc<dyn OrderRepository>, make_uow());
-    let result = usecase.execute(Uuid::new_v4(), vec![]).await;
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_place_order_with_empty_items_fails(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let customer = seed_customer(&pool).await;
+
+    let result = ctx.place_order.execute(customer, vec![]).await;
     assert!(matches!(result, Err(AppError::Validation(_))));
 }
 
-#[tokio::test]
-async fn place_order_with_zero_quantity_fails() {
-    let usecase = PlaceOrderUsecase::new(make_repo() as Arc<dyn OrderRepository>, make_uow());
-    let result = usecase.execute(Uuid::new_v4(), vec![item(0)]).await;
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_place_order_with_zero_quantity_fails(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let customer = seed_customer(&pool).await;
+    let variant = seed_variant(&pool).await;
+
+    let result = ctx
+        .place_order
+        .execute(
+            customer,
+            vec![NewOrderItem {
+                variant_id: variant,
+                quantity: 0,
+                unit_price: 500,
+            }],
+        )
+        .await;
+
     assert!(matches!(result, Err(AppError::Validation(_))));
 }
 
 // ─────────────────────────────────────────────
-// CancelOrder usecase tests
+// GetOrder E2E tests
 // ─────────────────────────────────────────────
 
-#[tokio::test]
-async fn cancel_pending_order_sets_status_to_cancelled() {
-    let repo = make_repo();
-    let uow = make_uow();
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_get_order_returns_correct_data(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let customer = seed_customer(&pool).await;
+    let variant = seed_variant(&pool).await;
 
-    // Place first
-    let place = PlaceOrderUsecase::new(repo.clone() as Arc<dyn OrderRepository>, uow.clone());
-    let order_id = place.execute(Uuid::new_v4(), vec![item(1)]).await.unwrap();
+    let order_id = ctx
+        .place_order
+        .execute(
+            customer,
+            vec![NewOrderItem {
+                variant_id: variant,
+                quantity: 3,
+                unit_price: 200,
+            }],
+        )
+        .await
+        .unwrap();
 
-    // Then cancel
-    let cancel = CancelOrderUsecase::new(repo.clone() as Arc<dyn OrderRepository>, uow);
-    cancel.execute(order_id).await.unwrap();
+    let order = ctx.get_order.execute(order_id).await.unwrap();
 
-    let store = repo.store.lock().unwrap();
-    assert_eq!(store.orders[0].status, OrderStatus::Cancelled);
+    assert_eq!(order.id, order_id);
+    assert_eq!(order.customer_id, customer);
+    assert_eq!(order.status, OrderStatus::Pending);
+    assert_eq!(order.total, 600); // 3 * 200
 }
 
-#[tokio::test]
-async fn cancel_already_cancelled_order_fails() {
-    let repo = make_repo();
-    let uow = make_uow();
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_get_order_not_found_returns_error(pool: PgPool) {
+    let ctx = TestContext::new(pool);
+    let result = ctx.get_order.execute(Uuid::new_v4()).await;
+    assert!(matches!(result, Err(AppError::NotFound(_))));
+}
 
-    let place = PlaceOrderUsecase::new(repo.clone() as Arc<dyn OrderRepository>, uow.clone());
-    let order_id = place.execute(Uuid::new_v4(), vec![item(1)]).await.unwrap();
+// ─────────────────────────────────────────────
+// CancelOrder E2E tests
+// ─────────────────────────────────────────────
 
-    let cancel = CancelOrderUsecase::new(repo.clone() as Arc<dyn OrderRepository>, uow.clone());
-    cancel.execute(order_id).await.unwrap();
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_cancel_pending_order_sets_cancelled_status(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let customer = seed_customer(&pool).await;
+    let variant = seed_variant(&pool).await;
+    let order_id = ctx
+        .place_order
+        .execute(
+            customer,
+            vec![NewOrderItem {
+                variant_id: variant,
+                quantity: 1,
+                unit_price: 100,
+            }],
+        )
+        .await
+        .unwrap();
 
-    // Second cancel must fail
-    let cancel2 = CancelOrderUsecase::new(repo.clone() as Arc<dyn OrderRepository>, uow);
-    let result = cancel2.execute(order_id).await;
+    ctx.cancel_order.execute(order_id).await.unwrap();
+
+    let order = ctx.get_order.execute(order_id).await.unwrap();
+    assert_eq!(order.status, OrderStatus::Cancelled);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_cancel_already_cancelled_order_fails(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let customer = seed_customer(&pool).await;
+    let variant = seed_variant(&pool).await;
+
+    let order_id = ctx
+        .place_order
+        .execute(
+            customer,
+            vec![NewOrderItem {
+                variant_id: variant,
+                quantity: 1,
+                unit_price: 100,
+            }],
+        )
+        .await
+        .unwrap();
+
+    ctx.cancel_order.execute(order_id).await.unwrap();
+
+    // Domain rule: cannot cancel a non-Pending order
+    let result = ctx.cancel_order.execute(order_id).await;
     assert!(matches!(result, Err(AppError::Validation(_))));
 }
 
-#[tokio::test]
-async fn cancel_nonexistent_order_returns_not_found() {
-    let cancel = CancelOrderUsecase::new(make_repo() as Arc<dyn OrderRepository>, make_uow());
-    let result = cancel.execute(Uuid::new_v4()).await;
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_cancel_nonexistent_order_returns_not_found(pool: PgPool) {
+    let ctx = TestContext::new(pool);
+    let result = ctx.cancel_order.execute(Uuid::new_v4()).await;
     assert!(matches!(result, Err(AppError::NotFound(_))));
 }

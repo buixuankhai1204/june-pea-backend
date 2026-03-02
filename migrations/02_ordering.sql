@@ -1,13 +1,12 @@
 CREATE SCHEMA IF NOT EXISTS ordering;
 
-CREATE TYPE ordering.order_status AS ENUM ('pending', 'cancelled', 'completed');
-
 CREATE TABLE ordering.orders (
-    id          UUID            PRIMARY KEY,
-    customer_id UUID            NOT NULL REFERENCES identify.users(id),
-    status      ordering.order_status NOT NULL DEFAULT 'pending',
-    total       BIGINT          NOT NULL CHECK (total >= 0),  -- stored in cents
-    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+    id          UUID        PRIMARY KEY,
+    customer_id UUID        NOT NULL REFERENCES identify.users(id),
+    status      TEXT        NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending', 'cancelled', 'completed')),
+    total       BIGINT      NOT NULL CHECK (total >= 0),  -- stored in cents
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE ordering.order_items (
