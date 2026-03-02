@@ -2,7 +2,7 @@ use crate::database::{DbExecutor, UnitOfWork};
 use crate::error::AppError;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::PgPool;
 
 /// The Concrete Wrapper for SQLx Transactions
 pub struct SqlxExecutor<'a> {
@@ -16,8 +16,8 @@ impl<'a> SqlxExecutor<'a> {
     /// Internal helper to recover the executor from a trait object
     /// This is safe because we only use it inside the Postgres Infrastructure
     pub fn from_executor(exec: &mut dyn DbExecutor) -> &mut Self {
-        // Since we know we are in the Postgres impl, we can use 
-        // a pointer cast (transmute) or simply define the trait 
+        // Since we know we are in the Postgres impl, we can use
+        // a pointer cast (transmute) or simply define the trait
         // to return the internal pointer.
         unsafe { &mut *(exec as *mut dyn DbExecutor as *mut Self) }
     }
@@ -42,7 +42,7 @@ impl UnitOfWork for PostgresUnitOfWork {
                 + Send,
         >,
     ) -> Result<(), AppError> {
-        let mut tx = self
+        let tx = self
             .pool
             .begin()
             .await
