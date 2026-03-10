@@ -9,6 +9,7 @@ use uuid::Uuid;
 use crate::domain::model::{NewOrderItem, Order};
 use crate::usecase::cancel_order::CancelOrderUsecase;
 use crate::usecase::get_order::GetOrderUsecase;
+use crate::usecase::list_orders::ListOrdersUsecase;
 use crate::usecase::place_order::PlaceOrderUsecase;
 
 #[derive(Clone)]
@@ -16,6 +17,7 @@ pub struct OrderingUsecase {
     place_order: Arc<PlaceOrderUsecase>,
     cancel_order: Arc<CancelOrderUsecase>,
     get_order: Arc<GetOrderUsecase>,
+    list_orders: Arc<ListOrdersUsecase>,
 }
 
 impl OrderingUsecase {
@@ -23,11 +25,13 @@ impl OrderingUsecase {
         place_order: Arc<PlaceOrderUsecase>,
         cancel_order: Arc<CancelOrderUsecase>,
         get_order: Arc<GetOrderUsecase>,
+        list_orders: Arc<ListOrdersUsecase>,
     ) -> Self {
         Self {
             place_order,
             cancel_order,
             get_order,
+            list_orders,
         }
     }
 
@@ -42,6 +46,10 @@ impl OrderingUsecase {
     pub fn get_order(&self) -> Arc<GetOrderUsecase> {
         self.get_order.clone()
     }
+
+    pub fn list_orders(&self) -> Arc<ListOrdersUsecase> {
+        self.list_orders.clone()
+    }
 }
 
 pub fn init() -> Router<OrderingUsecase> {
@@ -49,6 +57,7 @@ pub fn init() -> Router<OrderingUsecase> {
         .route("/orders", post(place_order_handler))
         .route("/orders/:id", get(get_order_handler))
         .route("/orders/:id", delete(cancel_order_handler))
+        .route("/orders/customer/:customer_id", get(list_orders_handler))
 }
 
 // --- Request / Response types ---
@@ -91,4 +100,13 @@ async fn cancel_order_handler(
     let usecase = state.cancel_order();
     usecase.execute(id).await?;
     Ok(Json(true))
+}
+
+async fn list_orders_handler(
+    State(state): State<OrderingUsecase>,
+    Path(customer_id): Path<Uuid>,
+) -> Result<Json<Vec<Order>>, AppError> {
+    let usecase = state.list_orders();
+    let orders = usecase.execute(customer_id).await?;
+    Ok(Json(orders))
 }

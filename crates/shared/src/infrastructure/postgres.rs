@@ -46,7 +46,7 @@ impl UnitOfWork for PostgresUnitOfWork {
             .pool
             .begin()
             .await
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_| AppError::InternalServerError)?;
 
         let mut executor = SqlxExecutor { tx };
 
@@ -58,7 +58,7 @@ impl UnitOfWork for PostgresUnitOfWork {
                     .tx
                     .commit()
                     .await
-                    .map_err(|e| AppError::InternalServerError)?;
+                    .map_err(|_| AppError::InternalServerError)?;
                 Ok(())
             }
             Err(e) => {

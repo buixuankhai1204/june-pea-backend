@@ -111,6 +111,29 @@ impl OrderRepository for PostgresOrderRepository {
 
         Ok(())
     }
+
+    async fn list_orders(
+        &self,
+        exec: &mut dyn DbExecutor,
+        customer_id: Uuid,
+    ) -> Result<Vec<Order>, AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        let rows = sqlx::query_as::<_, OrderRow>(
+            r#"
+            SELECT id, customer_id, status, total, created_at
+            FROM ordering.orders
+            WHERE customer_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(customer_id)
+        .fetch_all(&mut *executor.tx)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+        Ok(rows.into_iter().map(Into::into).collect())
+    }
 }
 
 fn status_to_str(status: &OrderStatus) -> &'static str {

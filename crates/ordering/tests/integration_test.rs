@@ -44,7 +44,7 @@ impl TestContext {
         Self {
             place_order: PlaceOrderUsecase::new(repo.clone(), uow.clone()),
             cancel_order: CancelOrderUsecase::new(repo.clone(), uow.clone()),
-            get_order: GetOrderUsecase::new(pool.clone(), repo.clone()),
+            get_order: GetOrderUsecase::new(repo.clone(), uow.clone()),
         }
     }
 }

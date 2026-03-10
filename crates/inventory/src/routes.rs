@@ -31,7 +31,7 @@ pub fn init() -> Router<InventoryUsecase>
 
 async fn descrease_stock_handler(
     State(state): State<InventoryUsecase>,
-    Path(slug): Path<String>,
+    Path(_slug): Path<String>,
 ) -> Result<Json<bool>, AppError>
 
 {

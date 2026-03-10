@@ -38,6 +38,7 @@ impl GetProductUsecase {
         Ok(product)
     }
 
+    #[allow(dead_code)]
     fn catalog_repository(&self) -> Arc<dyn CatalogRepository> {
         self.repo.clone()
     }

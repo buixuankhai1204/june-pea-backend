@@ -49,6 +49,14 @@ impl Coupon {
         self.current_uses += 1;
         Ok(())
     }
+
+    pub fn deactivate(&mut self) -> Result<(), AppError> {
+        if !self.is_active {
+            return Err(AppError::Validation("Coupon is already deactivated".to_string()));
+        }
+        self.is_active = false;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -8,6 +8,8 @@ shared = { path = "../shared" }
 identify = { path = "../identify" }
 catalog = { path = "../catalog" }
 inventory = { path = "../inventory" }
+marketing = { path = "../marketing" }
+ordering = { path = "../ordering" }
 redis = { workspace = true }
 axum = { workspace = true }
 serde = { workspace = true }

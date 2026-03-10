@@ -17,7 +17,9 @@ mod middleware;
 pub struct AppState {
     pub auth_service: Arc<AuthUsecase>,
     pub catalog_service: Arc<CatalogUsecase>, // Placeholder cho CatalogService
-    pub inventory_usecase: Arc<InventoryUsecase>
+    pub inventory_usecase: Arc<InventoryUsecase>,
+    pub marketing_usecase: Arc<marketing::routes::MarketingUsecase>,
+    pub ordering_usecase: Arc<ordering::routes::OrderingUsecase>,
 }
 
 impl IdentityState for AppState {
@@ -28,10 +30,8 @@ impl IdentityState for AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // 1. Khởi tạo Logging
     tracing_subscriber::fmt::init();
     dotenv().ok();
-    // 2. Kết nối Database
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     print!("Connecting to database at {}... ", db_url);
     let pool = PgPool::connect(&db_url).await?;
@@ -43,20 +43,46 @@ async fn main() -> anyhow::Result<()> {
     let auth_usecases = Arc::new(AuthUsecase::new(user_repo));
     let redis = Arc::new(RedisCatalogCache::new(&redis_url).await?);
     let postgrese_unit_of_work = Arc::new(shared::infrastructure::postgres::PostgresUnitOfWork::new(pool.clone()));
+    
+    // Inventory
     let inventory_usecases = Arc::new(inventory::routes::InventoryUsecase::new(
         Arc::new(inventory::infrastructure::persistence::postgres::PostgresInventoryRepository),
         postgrese_unit_of_work.clone(),
     ));
 
+    // Catalog
     let catalog_usecases = Arc::new(CatalogUsecase::new(
         catalog_repo,
         redis // Placeholder cho CatalogRepository
     ));
-    // 4. Đưa vào AppState
+
+    // Marketing
+    let marketing_repo = Arc::new(marketing::infrastructure::postgres::PostgresCouponRepository::new(pool.clone()));
+    let create_coupon = Arc::new(marketing::usecase::create_coupon::CreateCouponUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
+    let validate_coupon = Arc::new(marketing::usecase::validate_coupon::ValidateCouponUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
+    let list_coupons = Arc::new(marketing::usecase::list_coupons::ListCouponsUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
+    let deactivate_coupon = Arc::new(marketing::usecase::deactivate_coupon::DeactivateCouponUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
+    let marketing_usecases = Arc::new(marketing::routes::MarketingUsecase::new(create_coupon, validate_coupon, list_coupons, deactivate_coupon));
+
+    // Ordering
+    let ordering_repo = Arc::new(ordering::infrastructure::persistence::postgres::PostgresOrderRepository::new(pool.clone()));
+    let place_order = Arc::new(ordering::usecase::place_order::PlaceOrderUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
+    let cancel_order = Arc::new(ordering::usecase::cancel_order::CancelOrderUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
+    let get_order = Arc::new(ordering::usecase::get_order::GetOrderUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
+    let list_orders = Arc::new(ordering::usecase::list_orders::ListOrdersUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
+    let ordering_usecases = Arc::new(ordering::routes::OrderingUsecase::new(place_order, cancel_order, get_order, list_orders));
+
+    let marketing_router = marketing::routes::init()
+        .with_state(marketing_usecases.as_ref().clone());
+    let ordering_router = ordering::routes::init()
+        .with_state(ordering_usecases.as_ref().clone());
+
     let state = AppState {
         auth_service: auth_usecases,
         catalog_service: catalog_usecases,
         inventory_usecase: inventory_usecases,
+        marketing_usecase: marketing_usecases,
+        ordering_usecase: ordering_usecases,
     };
 
     tracing::info!("Running database migrations...");
@@ -65,13 +91,13 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Migration failed: {}", e))?;
 
-    // 5. Compose Routes (Gộp các module lại)
     let app = Router::new()
         .nest("/api/v1/auth", init())
+        .nest("/api/v1/marketing", marketing_router)
+        .nest("/api/v1/ordering", ordering_router)
         .layer(axum::middleware::from_fn(middleware::auth::auth_middleware))
         .with_state(state);
 
-    // 6. Start Server
     let addr = "0.0.0.0:8080";
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("🚀 Yame Ecommerce Core started at {}", addr);

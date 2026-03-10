@@ -17,21 +17,23 @@ impl PostgresUserRepository {
 #[async_trait::async_trait]
 impl UserRepository for PostgresUserRepository {
     async fn create_user(&self, user: &User) -> Result<(), AppError> {
-        sqlx::query!(
+        sqlx::query(
             "INSERT INTO identify.users (id, email, password_hash, role) VALUES ($1, $2, $3, $4)",
-            user.id, user.email, user.password_hash, user.role
         )
+            .bind(&user.id)
+            .bind(&user.email)
+            .bind(&user.password_hash)
+            .bind(&user.role)
             .execute(&*self.pool)
             .await?;
         Ok(())
     }
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError> {
-        let user = sqlx::query_as!(
-            User,
+        let user = sqlx::query_as::<_, User>(
             "SELECT id, email, password_hash, role FROM identify.users WHERE email = $1",
-            email
         )
+            .bind(email)
             .fetch_optional(&*self.pool)
             .await?;
         Ok(user)

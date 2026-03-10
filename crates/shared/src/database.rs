@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use futures::future::BoxFuture;
-use std::any::Any;
 use crate::error::AppError;
 
 /// The Bridge: Every DB transaction or connection must implement this.

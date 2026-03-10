@@ -21,7 +21,7 @@ impl InventoryRepository for PostgresInventoryRepository {
                 .bind(id)
                 .fetch_one(&mut *executor.tx)
                 .await
-                .map_err(|e| AppError::InternalServerError)?;
+                .map_err(|_| AppError::InternalServerError)?;
 
         Ok(row.try_get("quantity").unwrap_or(0))
     }
@@ -39,7 +39,7 @@ impl InventoryRepository for PostgresInventoryRepository {
             .bind(id)
             .execute(&mut *executor.tx)
             .await
-            .map_err(|e| AppError::InternalServerError)?;
+            .map_err(|_| AppError::InternalServerError)?;
 
         Ok(())
     }

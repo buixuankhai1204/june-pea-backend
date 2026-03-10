@@ -21,4 +21,10 @@ pub trait OrderRepository: Send + Sync {
         id: Uuid,
         status: OrderStatus,
     ) -> Result<(), AppError>;
+
+    async fn list_orders(
+        &self,
+        exec: &mut dyn DbExecutor,
+        customer_id: Uuid,
+    ) -> Result<Vec<Order>, AppError>;
 }

@@ -92,4 +92,20 @@ impl CouponRepository for PostgresCouponRepository {
 
         Ok(())
     }
+
+    async fn list_coupons(&self, exec: &mut dyn DbExecutor) -> Result<Vec<Coupon>, AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        let rows = sqlx::query_as::<_, Coupon>(
+            r#"
+            SELECT id, code, discount_amount, max_uses, current_uses, is_active, created_at
+            FROM marketing.coupons
+            "#,
+        )
+        .fetch_all(&mut *executor.tx)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+        Ok(rows)
+    }
 }

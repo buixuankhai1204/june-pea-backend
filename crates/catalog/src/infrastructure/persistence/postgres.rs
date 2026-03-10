@@ -17,7 +17,7 @@ impl PostgresCatalogRepository {
 #[async_trait]
 impl CatalogRepository for PostgresCatalogRepository {
     async fn get_by_slug(&self, slug: &str) -> Result<Option<ProductWithVariants>, AppError> {
-        let row = sqlx::query!(
+        let _row = sqlx::query(
             r#"
             SELECT p.*, 
                    json_agg(v.*) as "variants!"
@@ -26,8 +26,8 @@ impl CatalogRepository for PostgresCatalogRepository {
             WHERE p.slug = $1
             GROUP BY p.id
             "#,
-            slug
         )
+            .bind(slug)
             .fetch_optional(&*self.pool)
             .await?;
         Ok(None)
@@ -52,12 +52,13 @@ mod tests {
 
         // insert into category table first to satisfy foreign key constraint
         let category_id = uuid::Uuid::new_v4();
-        sqlx::query!("INSERT INTO catalog.categories (id, name, slug) VALUES ($1, $2, $3)", category_id, "Apparel", "apparel")
+        sqlx::query("INSERT INTO catalog.categories (id, name, slug) VALUES ($1, $2, $3)")
+            .bind(category_id).bind("Apparel").bind("apparel")
             .execute(&*repo.pool).await.unwrap();
 
         // 1. Setup seed data manually or via repo
-        sqlx::query!("INSERT INTO catalog.products (id, name, slug, category_id) VALUES ($1, $2, $3, $4)",
-            product_id, "Yame T-Shirt", "yame-t-shirt", category_id)
+        sqlx::query("INSERT INTO catalog.products (id, name, slug, category_id) VALUES ($1, $2, $3, $4)")
+            .bind(product_id).bind("Yame T-Shirt").bind("yame-t-shirt").bind(category_id)
             .execute(&*repo.pool).await.unwrap();
 
         // 2. Execution
