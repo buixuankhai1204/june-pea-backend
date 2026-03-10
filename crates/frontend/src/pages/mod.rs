@@ -1,0 +1,8 @@
+pub mod login;
+pub mod register;
+pub mod products;
+pub mod product_detail;
+pub mod cart;
+pub mod checkout;
+pub mod orders;
+pub mod home;

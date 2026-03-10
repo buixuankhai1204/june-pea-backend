@@ -7,7 +7,8 @@ members = [
     "crates/shared",
     "crates/marketing",
     "crates/identify",
-    "crates/ordering"
+    "crates/ordering",
+    "crates/frontend"
 ]
 
 [workspace.dependencies]
