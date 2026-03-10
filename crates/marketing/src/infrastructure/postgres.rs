@@ -1,0 +1,95 @@
+use crate::domain::{model::Coupon, repository::CouponRepository};
+use async_trait::async_trait;
+use shared::{database::DbExecutor, error::AppError, infrastructure::postgres::SqlxExecutor};
+use sqlx::PgPool;
+
+pub struct PostgresCouponRepository {
+    pub pool: PgPool,
+}
+
+impl PostgresCouponRepository {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl CouponRepository for PostgresCouponRepository {
+    async fn create_coupon(
+        &self,
+        exec: &mut dyn DbExecutor,
+        coupon: &Coupon,
+    ) -> Result<(), AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        sqlx::query(
+            r#"
+            INSERT INTO marketing.coupons (id, code, discount_amount, max_uses, current_uses, is_active, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+        )
+        .bind(coupon.id)
+        .bind(&coupon.code)
+        .bind(coupon.discount_amount)
+        .bind(coupon.max_uses)
+        .bind(coupon.current_uses)
+        .bind(coupon.is_active)
+        .bind(coupon.created_at)
+        .execute(&mut *executor.tx)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+        Ok(())
+    }
+
+    async fn get_coupon_by_code(
+        &self,
+        exec: &mut dyn DbExecutor,
+        code: &str,
+    ) -> Result<Coupon, AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        let row = sqlx::query_as::<_, Coupon>(
+            r#"
+            SELECT id, code, discount_amount, max_uses, current_uses, is_active, created_at
+            FROM marketing.coupons
+            WHERE code = $1
+            "#,
+        )
+        .bind(code)
+        .fetch_one(&mut *executor.tx)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => AppError::NotFound(format!("Coupon {} not found", code)),
+            _ => AppError::InternalServerError,
+        })?;
+
+        Ok(row)
+    }
+
+    async fn update_coupon(
+        &self,
+        exec: &mut dyn DbExecutor,
+        coupon: &Coupon,
+    ) -> Result<(), AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        sqlx::query(
+            r#"
+            UPDATE marketing.coupons
+            SET discount_amount = $1, max_uses = $2, current_uses = $3, is_active = $4
+            WHERE id = $5
+            "#,
+        )
+        .bind(coupon.discount_amount)
+        .bind(coupon.max_uses)
+        .bind(coupon.current_uses)
+        .bind(coupon.is_active)
+        .bind(coupon.id)
+        .execute(&mut *executor.tx)
+        .await
+        .map_err(|_| AppError::InternalServerError)?;
+
+        Ok(())
+    }
+}

@@ -1,0 +1,66 @@
+use sqlx::PgPool;
+use std::sync::Arc;
+use uuid::Uuid;
+
+use marketing::{
+    domain::model::Coupon,
+    infrastructure::postgres::PostgresCouponRepository,
+    usecase::{create_coupon::CreateCouponUsecase, validate_coupon::ValidateCouponUsecase},
+};
+use shared::{error::AppError, infrastructure::postgres::PostgresUnitOfWork};
+
+struct TestContext {
+    create_coupon: CreateCouponUsecase,
+    validate_coupon: ValidateCouponUsecase,
+}
+
+impl TestContext {
+    fn new(pool: PgPool) -> Self {
+        let repo = Arc::new(PostgresCouponRepository::new(pool.clone()));
+        let uow = Arc::new(PostgresUnitOfWork::new(pool.clone()));
+
+        Self {
+            create_coupon: CreateCouponUsecase::new(repo.clone(), uow.clone()),
+            validate_coupon: ValidateCouponUsecase::new(repo, uow),
+        }
+    }
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_create_coupon_persists_in_db(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let code = "TEST20".to_string();
+    let discount = 2000;
+    
+    let coupon = ctx.create_coupon.execute(code.clone(), discount, 10).await.unwrap();
+
+    let mut tx = pool.begin().await.unwrap();
+    let row = sqlx::query("SELECT discount_amount FROM marketing.coupons WHERE code = $1")
+        .bind(&code)
+        .fetch_one(&mut *tx)
+        .await
+        .unwrap();
+
+    let fetched_discount: i64 = sqlx::Row::try_get(&row, "discount_amount").unwrap();
+    assert_eq!(fetched_discount, discount);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_validate_coupon_works(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let code = "TEST30".to_string();
+    
+    // Create coupon
+    ctx.create_coupon.execute(code.clone(), 3000, 5).await.unwrap();
+
+    // Validate coupon
+    let coupon = ctx.validate_coupon.execute(&code).await.unwrap();
+    assert_eq!(coupon.discount_amount, 3000);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_validate_nonexistent_coupon_fails(pool: PgPool) {
+    let ctx = TestContext::new(pool);
+    let result = ctx.validate_coupon.execute("NONEXISTENT").await;
+    assert!(matches!(result, Err(AppError::NotFound(_))));
+}
