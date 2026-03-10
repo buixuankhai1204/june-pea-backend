@@ -42,8 +42,9 @@ impl AuthUsecase {
             .verify_password(password.as_bytes(), &parsed_hash)
             .map_err(|_| AppError::Unauthorized("Invalid credentials".into()))?;
 
-        // Generate Token
-        let claims = UserClaims { sub: user.id, role: user.role, exp: 24 * 3600 }; // Fake exp
+        // Generate Token — exp must be a UNIX timestamp
+        let exp = chrono::Utc::now().timestamp() as usize + 24 * 3600;
+        let claims = UserClaims { sub: user.id, role: user.role, exp };
         encode_token(claims)
     }
 }

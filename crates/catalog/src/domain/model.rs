@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use rust_decimal::Decimal;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct Product {
     pub id: Uuid,
     pub name: String,
@@ -11,13 +11,15 @@ pub struct Product {
     pub category_id: Uuid,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, sqlx::FromRow)]
 pub struct ProductVariant {
     pub id: Uuid,
     pub product_id: Uuid,
-    pub sku: String,             // E.g., YAME-TSHIRT-L-BLK
-    pub price: Decimal,
-    pub attributes: serde_json::Value, // {"size": "L", "color": "Black"}
+    pub sku: String,
+    pub name: String,
+    pub base_price: Decimal,
+    pub sale_price: Option<Decimal>,
+    pub attributes: serde_json::Value,
 }
 
 /// A composite DTO for the Storefront
@@ -27,22 +29,11 @@ pub struct ProductWithVariants {
     pub variants: Vec<ProductVariant>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-
-    #[test]
-    fn test_variant_discount_calculation() {
-        let variant = ProductVariant {
-            id: Uuid::new_v4(),
-            product_id: Uuid::new_v4(),
-            sku: "YAME-TEE-L-BLK".to_string(),
-            price: Decimal::new(10000, 2), // $100.00
-            attributes: serde_json::json!({"size": "L"}),
-        };
-
-        // Assertions for business rules can go here
-        assert_eq!(variant.price, Decimal::new(10000, 2));
-    }
+/// Paginated response wrapper
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginatedProducts {
+    pub items: Vec<Product>,
+    pub total: i64,
+    pub page: i64,
+    pub page_size: i64,
 }

@@ -14,13 +14,14 @@ pub async fn auth_middleware(
     let auth_header = req.headers()
         .get(AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
-        .ok_or(AppError::Unauthorized).unwrap_or_default();
+        .ok_or_else(|| AppError::Unauthorized("Missing Authorization header".into()))?;
 
+    let token = auth_header
+        .strip_prefix("Bearer ")
+        .ok_or_else(|| AppError::Unauthorized("Invalid Authorization header format".into()))?;
 
-    let token = &auth_header[7..]; // Cắt bỏ "Bearer "
     let claims = decode_token(token)?;
 
-    // Inject thông tin user vào Request extensions để các Module sau sử dụng
     req.extensions_mut().insert(claims);
 
     Ok(next.run(req).await)

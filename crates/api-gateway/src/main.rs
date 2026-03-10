@@ -10,6 +10,7 @@ use catalog::infrastructure::cache::redis::RedisCatalogCache;
 use catalog::infrastructure::persistence::postgres::PostgresCatalogRepository;
 use catalog::routes::CatalogUsecase;
 use inventory::routes::InventoryUsecase;
+use tower_http;
 
 mod middleware;
 
@@ -76,6 +77,10 @@ async fn main() -> anyhow::Result<()> {
         .with_state(marketing_usecases.as_ref().clone());
     let ordering_router = ordering::routes::init()
         .with_state(ordering_usecases.as_ref().clone());
+    let catalog_router = catalog::routes::init()
+        .with_state(catalog_usecases.as_ref().clone());
+    let inventory_router = inventory::routes::init()
+        .with_state(inventory_usecases.as_ref().clone());
 
     let state = AppState {
         auth_service: auth_usecases,
@@ -91,11 +96,27 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Migration failed: {}", e))?;
 
-    let app = Router::new()
-        .nest("/api/v1/auth", init())
+    // Public routes (no auth required)
+    let public_routes = Router::new()
+        .nest("/api/v1/auth", init());
+
+    // Protected routes (auth required)
+    let protected_routes = Router::new()
+        .nest("/api/v1/catalog", catalog_router)
+        .nest("/api/v1/inventory", inventory_router)
         .nest("/api/v1/marketing", marketing_router)
         .nest("/api/v1/ordering", ordering_router)
-        .layer(axum::middleware::from_fn(middleware::auth::auth_middleware))
+        .layer(axum::middleware::from_fn(middleware::auth::auth_middleware));
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any),
+        )
         .with_state(state);
 
     let addr = "0.0.0.0:8080";

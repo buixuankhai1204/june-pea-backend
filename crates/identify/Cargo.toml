@@ -13,5 +13,6 @@ tracing = { workspace = true }
 async-trait = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }
+chrono = { workspace = true }
 argon2 = "0.6.0-rc.7"
 password-hash = "0.6.0-rc.12"
