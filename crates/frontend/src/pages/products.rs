@@ -68,7 +68,7 @@ pub fn ProductsPage() -> impl IntoView {
                                     <button
                                         class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
                                         disabled=move || page.get() >= total_pages
-                                        on:click=move |_| page.update(|p| *p += 1)
+                                        onclick=move |_| page.update(|p| *p += 1)
                                     >
                                         "Next"
                                     </button>
