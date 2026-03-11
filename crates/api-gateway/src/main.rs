@@ -159,6 +159,10 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .fallback_service(
+            tower_http::services::ServeDir::new("dist")
+                .fallback(tower_http::services::ServeFile::new("dist/index.html")),
+        )
         .layer(
             tower_http::cors::CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
