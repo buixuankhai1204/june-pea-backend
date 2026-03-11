@@ -11,6 +11,9 @@ use sqlx::PgPool;
 use std::env;
 use std::sync::Arc;
 use tower_http;
+use tracing::Level;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::FmtSubscriber;
 
 mod middleware;
 
@@ -31,8 +34,12 @@ impl IdentityState for AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
     dotenv().ok();
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    subscriber.init();
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     print!("Connecting to database at {}... ", db_url);
     let pool = PgPool::connect(&db_url).await?;

@@ -18,7 +18,7 @@ pub enum OrderStatus {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Order {
     pub id: Uuid,
-    pub customer_id: Uuid,
+    pub customer_id: Option<Uuid>,
     pub status: OrderStatus,
     pub total: i64, // in cents
     pub created_at: DateTime<Utc>,
@@ -43,7 +43,7 @@ pub struct NewOrderItem {
 impl Order {
     /// Domain factory: validates all business rules then constructs Order + OrderItems.
     pub fn place(
-        customer_id: Uuid,
+        customer_id: Option<Uuid>,
         new_items: Vec<NewOrderItem>,
     ) -> Result<(Order, Vec<OrderItem>), AppError> {
         ensure(&OrderMustHaveItemsRule::new(new_items.len()))?;
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn place_order_with_valid_items_succeeds() {
-        let customer = Uuid::new_v4();
+        let customer = Some(Uuid::new_v4());
         let items = vec![sample_item(2), sample_item(3)];
         let (order, order_items) = Order::place(customer, items).unwrap();
 
@@ -120,19 +120,19 @@ mod tests {
 
     #[test]
     fn place_order_with_no_items_fails() {
-        let result = Order::place(Uuid::new_v4(), vec![]);
+        let result = Order::place(Some(Uuid::new_v4()), vec![]);
         assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]
     fn place_order_with_zero_quantity_fails() {
-        let result = Order::place(Uuid::new_v4(), vec![sample_item(0)]);
+        let result = Order::place(Some(Uuid::new_v4()), vec![sample_item(0)]);
         assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
     #[test]
     fn place_order_with_negative_quantity_fails() {
-        let result = Order::place(Uuid::new_v4(), vec![sample_item(-1)]);
+        let result = Order::place(Some(Uuid::new_v4()), vec![sample_item(-1)]);
         assert!(matches!(result, Err(AppError::Validation(_))));
     }
 
@@ -140,14 +140,14 @@ mod tests {
 
     #[test]
     fn cancel_pending_order_succeeds() {
-        let (mut order, _) = Order::place(Uuid::new_v4(), vec![sample_item(1)]).unwrap();
+        let (mut order, _) = Order::place(Some(Uuid::new_v4()), vec![sample_item(1)]).unwrap();
         assert!(order.cancel().is_ok());
         assert_eq!(order.status, OrderStatus::Cancelled);
     }
 
     #[test]
     fn cancel_already_cancelled_order_fails() {
-        let (mut order, _) = Order::place(Uuid::new_v4(), vec![sample_item(1)]).unwrap();
+        let (mut order, _) = Order::place(Some(Uuid::new_v4()), vec![sample_item(1)]).unwrap();
         order.cancel().unwrap();
         let result = order.cancel();
         assert!(matches!(result, Err(AppError::Validation(_))));
@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn cancel_completed_order_fails() {
-        let (mut order, _) = Order::place(Uuid::new_v4(), vec![sample_item(1)]).unwrap();
+        let (mut order, _) = Order::place(Some(Uuid::new_v4()), vec![sample_item(1)]).unwrap();
         order.status = OrderStatus::Completed;
         let result = order.cancel();
         assert!(matches!(result, Err(AppError::Validation(_))));

@@ -5,7 +5,7 @@ use uuid::Uuid;
 #[derive(sqlx::FromRow)]
 pub struct OrderRow {
     pub id: Uuid,
-    pub customer_id: Uuid,
+    pub customer_id: Option<Uuid>,
     pub status: String,
     pub total: i64,
     pub created_at: DateTime<Utc>,

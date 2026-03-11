@@ -14,13 +14,7 @@ pub fn CheckoutPage() -> impl IntoView {
     let success_order_id = RwSignal::new(Option::<String>::None);
 
     let on_place_order = move |_: web_sys::MouseEvent| {
-        let user_id = match auth.current_user_id() {
-            Some(id) => id,
-            None => {
-                error.set("You must be logged in to place an order.".into());
-                return;
-            }
-        };
+        let user_id = auth.current_user_id();
 
         let items = cart.items.get_untracked();
         if items.is_empty() {

@@ -115,7 +115,7 @@ async fn e2e_place_order_persists_order_and_items(pool: PgPool) {
     let order_id = ctx
         .place_order
         .execute(
-            customer,
+            Some(customer),
             vec![NewOrderItem {
                 variant_id: variant,
                 quantity: 2,
@@ -155,7 +155,7 @@ async fn e2e_place_order_with_empty_items_fails(pool: PgPool) {
     let ctx = TestContext::new(pool.clone());
     let customer = seed_customer(&pool).await;
 
-    let result = ctx.place_order.execute(customer, vec![]).await;
+    let result = ctx.place_order.execute(Some(customer), vec![]).await;
     assert!(matches!(result, Err(AppError::Validation(_))));
 }
 
@@ -168,7 +168,7 @@ async fn e2e_place_order_with_zero_quantity_fails(pool: PgPool) {
     let result = ctx
         .place_order
         .execute(
-            customer,
+            Some(customer),
             vec![NewOrderItem {
                 variant_id: variant,
                 quantity: 0,
@@ -193,7 +193,7 @@ async fn e2e_get_order_returns_correct_data(pool: PgPool) {
     let order_id = ctx
         .place_order
         .execute(
-            customer,
+            Some(customer),
             vec![NewOrderItem {
                 variant_id: variant,
                 quantity: 3,
@@ -206,7 +206,7 @@ async fn e2e_get_order_returns_correct_data(pool: PgPool) {
     let order = ctx.get_order.execute(order_id).await.unwrap();
 
     assert_eq!(order.id, order_id);
-    assert_eq!(order.customer_id, customer);
+    assert_eq!(order.customer_id, Some(customer));
     assert_eq!(order.status, OrderStatus::Pending);
     assert_eq!(order.total, 600); // 3 * 200
 }
@@ -230,7 +230,7 @@ async fn e2e_cancel_pending_order_sets_cancelled_status(pool: PgPool) {
     let order_id = ctx
         .place_order
         .execute(
-            customer,
+            Some(customer),
             vec![NewOrderItem {
                 variant_id: variant,
                 quantity: 1,
@@ -255,7 +255,7 @@ async fn e2e_cancel_already_cancelled_order_fails(pool: PgPool) {
     let order_id = ctx
         .place_order
         .execute(
-            customer,
+            Some(customer),
             vec![NewOrderItem {
                 variant_id: variant,
                 quantity: 1,

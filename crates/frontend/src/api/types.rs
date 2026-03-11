@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use rust_decimal::Decimal;
-use chrono::{DateTime, Utc};
 
 // ─── Newtype IDs ───────────────────────────────────────────
 
@@ -46,7 +46,7 @@ pub struct UserClaims {
 
 // ─── Catalog ───────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Product {
     pub id: Uuid,
     pub name: String,
@@ -55,7 +55,7 @@ pub struct Product {
     pub category_id: Uuid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProductVariant {
     pub id: Uuid,
     pub product_id: Uuid,
@@ -66,7 +66,7 @@ pub struct ProductVariant {
     pub attributes: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProductWithVariants {
     pub product: Product,
     pub variants: Vec<ProductVariant>,
@@ -117,7 +117,7 @@ pub struct NewOrderItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaceOrderRequest {
-    pub customer_id: Uuid,
+    pub customer_id: Option<Uuid>,
     pub items: Vec<NewOrderItem>,
 }
 

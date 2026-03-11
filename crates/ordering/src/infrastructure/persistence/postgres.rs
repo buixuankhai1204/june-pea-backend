@@ -164,7 +164,7 @@ mod tests {
         let repo = PostgresOrderRepository::new(pool.clone());
         let uow = PostgresUnitOfWork::new(pool.clone());
 
-        let customer = Uuid::new_v4();
+        let customer = Some(Uuid::new_v4());
         let items = vec![NewOrderItem {
             variant_id: Uuid::new_v4(),
             quantity: 2,
@@ -211,7 +211,7 @@ mod tests {
         let uow = PostgresUnitOfWork::new(pool.clone());
 
         let (order, items) = Order::place(
-            Uuid::new_v4(),
+            Some(Uuid::new_v4()),
             vec![NewOrderItem {
                 variant_id: Uuid::new_v4(),
                 quantity: 1,

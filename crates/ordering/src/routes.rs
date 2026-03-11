@@ -64,7 +64,7 @@ pub fn init() -> Router<OrderingUsecase> {
 
 #[derive(Debug, Deserialize)]
 struct PlaceOrderRequest {
-    customer_id: Uuid,
+    customer_id: Option<Uuid>,
     items: Vec<NewOrderItem>,
 }
 

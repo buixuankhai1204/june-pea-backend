@@ -18,7 +18,7 @@ impl PlaceOrderUsecase {
 
     pub async fn execute(
         &self,
-        customer_id: Uuid,
+        customer_id: Option<Uuid>,
         new_items: Vec<NewOrderItem>,
     ) -> Result<Uuid, AppError> {
         // Domain factory validates all business rules internally
