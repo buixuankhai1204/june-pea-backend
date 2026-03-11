@@ -33,8 +33,7 @@ RUN trunk build --release
 FROM nginx:alpine
 
 COPY --from=builder /app/crates/frontend/dist /usr/share/nginx/html
-COPY crates/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY crates/frontend/nginx.conf /etc/nginx/templates/default.conf.template
 
-EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
