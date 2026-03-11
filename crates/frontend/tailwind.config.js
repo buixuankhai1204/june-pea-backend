@@ -5,7 +5,11 @@ module.exports = {
     "./index.html",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        montserrat: ["'Montserrat'", "system-ui", "sans-serif"],
+      },
+    },
   },
   plugins: [],
 }
