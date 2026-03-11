@@ -126,7 +126,7 @@ fn Accordion(icon: impl IntoView + 'static, title: String, children: ChildrenFn)
                     {icon_chevron_down()}
                 </span>
             </button>
-            ||{move || if open.get() {
+            |_|{move || if open.get() {
                 view! {
                     <div class="pb-5 text-sm text-gray-600 leading-relaxed animate-fadeInUp">
                         {children()}
