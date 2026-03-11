@@ -7,5 +7,8 @@ watch = ["src", "style", "index.html"]
 
 [[hooks]]
 stage = "pre_build"
-command = "npx"
+command = "npx.cmd"
 command_arguments = ["tailwindcss", "-i", "style/input.css", "-o", "style/output.css", "--minify"]
+
+[[proxy]]
+backend = "http://127.0.0.1:3000/api"

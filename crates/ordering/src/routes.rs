@@ -55,9 +55,9 @@ impl OrderingUsecase {
 pub fn init() -> Router<OrderingUsecase> {
     Router::new()
         .route("/orders", post(place_order_handler))
-        .route("/orders/:id", get(get_order_handler))
-        .route("/orders/:id", delete(cancel_order_handler))
-        .route("/orders/customer/:customer_id", get(list_orders_handler))
+        .route("/orders/{id}", get(get_order_handler))
+        .route("/orders/{id}", delete(cancel_order_handler))
+        .route("/orders/customer/{customer_id}", get(list_orders_handler))
 }
 
 // --- Request / Response types ---

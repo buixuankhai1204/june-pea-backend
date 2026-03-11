@@ -1,15 +1,15 @@
-use std::sync::Arc;
-use sqlx::PgPool;
-use axum::{Router};
-use identify::infrastructure::persistence::postgres::PostgresUserRepository;
-use identify::routes::{init, IdentityState};
-use identify::usecase::auth::AuthUsecase;
-use std::env;
-use dotenv::dotenv;
+use axum::Router;
 use catalog::infrastructure::cache::redis::RedisCatalogCache;
 use catalog::infrastructure::persistence::postgres::PostgresCatalogRepository;
 use catalog::routes::CatalogUsecase;
+use dotenv::dotenv;
+use identify::infrastructure::persistence::postgres::PostgresUserRepository;
+use identify::routes::{init, IdentityState};
+use identify::usecase::auth::AuthUsecase;
 use inventory::routes::InventoryUsecase;
+use sqlx::PgPool;
+use std::env;
+use std::sync::Arc;
 use tower_http;
 
 mod middleware;
@@ -43,8 +43,10 @@ async fn main() -> anyhow::Result<()> {
     let catalog_repo = Arc::new(PostgresCatalogRepository::new(Arc::new(pool.clone()))); // Placeholder cho CatalogRepository
     let auth_usecases = Arc::new(AuthUsecase::new(user_repo));
     let redis = Arc::new(RedisCatalogCache::new(&redis_url).await?);
-    let postgrese_unit_of_work = Arc::new(shared::infrastructure::postgres::PostgresUnitOfWork::new(pool.clone()));
-    
+    let postgrese_unit_of_work = Arc::new(
+        shared::infrastructure::postgres::PostgresUnitOfWork::new(pool.clone()),
+    );
+
     // Inventory
     let inventory_usecases = Arc::new(inventory::routes::InventoryUsecase::new(
         Arc::new(inventory::infrastructure::persistence::postgres::PostgresInventoryRepository),
@@ -54,33 +56,72 @@ async fn main() -> anyhow::Result<()> {
     // Catalog
     let catalog_usecases = Arc::new(CatalogUsecase::new(
         catalog_repo,
-        redis // Placeholder cho CatalogRepository
+        redis, // Placeholder cho CatalogRepository
     ));
 
     // Marketing
-    let marketing_repo = Arc::new(marketing::infrastructure::postgres::PostgresCouponRepository::new(pool.clone()));
-    let create_coupon = Arc::new(marketing::usecase::create_coupon::CreateCouponUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
-    let validate_coupon = Arc::new(marketing::usecase::validate_coupon::ValidateCouponUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
-    let list_coupons = Arc::new(marketing::usecase::list_coupons::ListCouponsUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
-    let deactivate_coupon = Arc::new(marketing::usecase::deactivate_coupon::DeactivateCouponUsecase::new(marketing_repo.clone(), postgrese_unit_of_work.clone()));
-    let marketing_usecases = Arc::new(marketing::routes::MarketingUsecase::new(create_coupon, validate_coupon, list_coupons, deactivate_coupon));
+    let marketing_repo =
+        Arc::new(marketing::infrastructure::postgres::PostgresCouponRepository::new(pool.clone()));
+    let create_coupon = Arc::new(marketing::usecase::create_coupon::CreateCouponUsecase::new(
+        marketing_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let validate_coupon = Arc::new(
+        marketing::usecase::validate_coupon::ValidateCouponUsecase::new(
+            marketing_repo.clone(),
+            postgrese_unit_of_work.clone(),
+        ),
+    );
+    let list_coupons = Arc::new(marketing::usecase::list_coupons::ListCouponsUsecase::new(
+        marketing_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let deactivate_coupon = Arc::new(
+        marketing::usecase::deactivate_coupon::DeactivateCouponUsecase::new(
+            marketing_repo.clone(),
+            postgrese_unit_of_work.clone(),
+        ),
+    );
+    let marketing_usecases = Arc::new(marketing::routes::MarketingUsecase::new(
+        create_coupon,
+        validate_coupon,
+        list_coupons,
+        deactivate_coupon,
+    ));
 
     // Ordering
-    let ordering_repo = Arc::new(ordering::infrastructure::persistence::postgres::PostgresOrderRepository::new(pool.clone()));
-    let place_order = Arc::new(ordering::usecase::place_order::PlaceOrderUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
-    let cancel_order = Arc::new(ordering::usecase::cancel_order::CancelOrderUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
-    let get_order = Arc::new(ordering::usecase::get_order::GetOrderUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
-    let list_orders = Arc::new(ordering::usecase::list_orders::ListOrdersUsecase::new(ordering_repo.clone(), postgrese_unit_of_work.clone()));
-    let ordering_usecases = Arc::new(ordering::routes::OrderingUsecase::new(place_order, cancel_order, get_order, list_orders));
+    let ordering_repo = Arc::new(
+        ordering::infrastructure::persistence::postgres::PostgresOrderRepository::new(pool.clone()),
+    );
+    let place_order = Arc::new(ordering::usecase::place_order::PlaceOrderUsecase::new(
+        ordering_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let cancel_order = Arc::new(ordering::usecase::cancel_order::CancelOrderUsecase::new(
+        ordering_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let get_order = Arc::new(ordering::usecase::get_order::GetOrderUsecase::new(
+        ordering_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let list_orders = Arc::new(ordering::usecase::list_orders::ListOrdersUsecase::new(
+        ordering_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let ordering_usecases = Arc::new(ordering::routes::OrderingUsecase::new(
+        place_order,
+        cancel_order,
+        get_order,
+        list_orders,
+    ));
 
-    let marketing_router = marketing::routes::init()
-        .with_state(marketing_usecases.as_ref().clone());
-    let ordering_router = ordering::routes::init()
-        .with_state(ordering_usecases.as_ref().clone());
-    let catalog_router = catalog::routes::init()
-        .with_state(catalog_usecases.as_ref().clone());
-    let inventory_router = inventory::routes::init()
-        .with_state(inventory_usecases.as_ref().clone());
+    let marketing_router =
+        marketing::routes::init().with_state(marketing_usecases.as_ref().clone());
+    let ordering_router = ordering::routes::init().with_state(ordering_usecases.as_ref().clone());
+    let catalog_router = catalog::routes::init().with_state(catalog_usecases.as_ref().clone());
+    let inventory_router =
+        inventory::routes::init().with_state(inventory_usecases.as_ref().clone());
 
     let state = AppState {
         auth_service: auth_usecases,
@@ -98,11 +139,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Public routes (no auth required)
     let public_routes = Router::new()
-        .nest("/api/v1/auth", init());
+        .nest("/api/v1/auth", init())
+        .nest("/api/v1/catalog", catalog_router);
 
     // Protected routes (auth required)
     let protected_routes = Router::new()
-        .nest("/api/v1/catalog", catalog_router)
         .nest("/api/v1/inventory", inventory_router)
         .nest("/api/v1/marketing", marketing_router)
         .nest("/api/v1/ordering", ordering_router)
@@ -119,7 +160,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .with_state(state);
 
-    let addr = "0.0.0.0:8080";
+    let addr = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("🚀 Yame Ecommerce Core started at {}", addr);
     axum::serve(listener, app).await?;

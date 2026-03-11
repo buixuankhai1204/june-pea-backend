@@ -12,12 +12,12 @@ fn base_url() -> String {
         .and_then(|w| w.location().origin().ok())
         .map(|origin| {
             if origin.contains("127.0.0.1") || origin.contains("localhost") {
-                "http://localhost:8080".to_string()
+                "http://127.0.0.1:3000".to_string()
             } else {
                 origin
             }
         })
-        .unwrap_or_else(|| "http://localhost:8080".to_string())
+        .unwrap_or_else(|| "http://127.0.0.1:3000".to_string())
 }
 
 #[derive(Error, Debug, Clone)]
@@ -78,7 +78,9 @@ fn apply_headers(req: RequestBuilder) -> RequestBuilder {
     }
 }
 
-async fn handle_response<T: DeserializeOwned>(resp: gloo_net::http::Response) -> Result<T, ApiError> {
+async fn handle_response<T: DeserializeOwned>(
+    resp: gloo_net::http::Response,
+) -> Result<T, ApiError> {
     let status = resp.status();
 
     if (200..300).contains(&status) {

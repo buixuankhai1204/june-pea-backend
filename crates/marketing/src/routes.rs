@@ -1,5 +1,5 @@
 use axum::extract::{Path, State};
-use axum::routing::{get, post, patch};
+use axum::routing::{get, patch, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use shared::AppError;
@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 use crate::domain::model::Coupon;
 use crate::usecase::create_coupon::CreateCouponUsecase;
-use crate::usecase::validate_coupon::ValidateCouponUsecase;
-use crate::usecase::list_coupons::ListCouponsUsecase;
 use crate::usecase::deactivate_coupon::DeactivateCouponUsecase;
+use crate::usecase::list_coupons::ListCouponsUsecase;
+use crate::usecase::validate_coupon::ValidateCouponUsecase;
 
 #[derive(Clone)]
 pub struct MarketingUsecase {
@@ -55,8 +55,11 @@ pub fn init() -> Router<MarketingUsecase> {
     Router::new()
         .route("/coupons", post(create_coupon_handler))
         .route("/coupons", get(list_coupons_handler))
-        .route("/coupons/:code/validate", get(validate_coupon_handler))
-        .route("/coupons/:code/deactivate", patch(deactivate_coupon_handler))
+        .route("/coupons/{code}/validate", get(validate_coupon_handler))
+        .route(
+            "/coupons/{code}/deactivate",
+            patch(deactivate_coupon_handler),
+        )
 }
 
 // --- Request / Response types ---
@@ -93,7 +96,7 @@ async fn validate_coupon_handler(
 ) -> Result<Json<ValidateCouponResponse>, AppError> {
     let usecase = state.validate_coupon();
     let coupon = usecase.execute(&code).await?;
-    
+
     Ok(Json(ValidateCouponResponse {
         is_valid: true,
         discount_amount: coupon.discount_amount,
