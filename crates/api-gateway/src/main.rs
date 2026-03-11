@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .with_state(state);
 
-    let addr = "0.0.0.0:3000";
+    let addr = "0.0.0.0:8080";
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("🚀 Yame Ecommerce Core started at {}", addr);
     axum::serve(listener, app).await?;
