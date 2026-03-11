@@ -12,9 +12,9 @@ fn base_url() -> String {
         .and_then(|w| w.location().origin().ok())
         .map(|origin| {
             if origin.contains("127.0.0.1") || origin.contains("localhost") {
-                "http://127.0.0.1:3000".to_string()
+                "https://june-pea-backend-production.up.railway.app".to_string()
             } else {
-                origin
+                "https://june-pea-backend-production.up.railway.app".to_string()
             }
         })
         .unwrap_or_else(|| "http://127.0.0.1:3000".to_string())

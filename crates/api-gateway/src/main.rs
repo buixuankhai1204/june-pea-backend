@@ -169,7 +169,7 @@ async fn main() -> anyhow::Result<()> {
                 .allow_methods(tower_http::cors::Any)
                 .allow_headers(tower_http::cors::Any),
         )
-        .with_state(state);
+        .with_state(state); 
 
     let addr = "0.0.0.0:8080";
     let listener = tokio::net::TcpListener::bind(addr).await?;
