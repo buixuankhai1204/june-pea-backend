@@ -1,0 +1,11 @@
+target/
+**/*/dist/
+.git/
+.idea/
+.env
+api_logs.txt
+api_stderr*
+api_stdout*
+build_output.log
+cargo_check.log
+log.txt

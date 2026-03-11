@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: june_pea_ecommerce
+      POSTGRES_DB: june_pea
     ports:
       - "5432:5432"
     volumes:
@@ -21,20 +21,34 @@ services:
     ports:
       - "6379:6379"
 
-  # Rust API Gateway
-  app:
-    build: .
-    container_name: june_pea_api
+  # Backend API Gateway
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: june_pea_backend
     depends_on:
       - postgres
       - redis
     ports:
-      - "8080:8080"
+      - "3000:3000"
     environment:
-      DATABASE_URL: postgres://user:password@postgres:5432/june_pea_ecommerce
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/june_pea
       REDIS_URL: redis://redis:6379
       JWT_SECRET: your_super_secret_key_june_pea_2024
       RUST_LOG: info
+    restart: always
+
+  # Frontend Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: june_pea_frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
     restart: always
 
 volumes:
