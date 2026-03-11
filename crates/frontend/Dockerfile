@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev curl && rm -rf /v
 RUN curl -sL https://github.com/trunk-rs/trunk/releases/download/v0.21.4/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf- -C /usr/local/bin
 RUN rustup target add wasm32-unknown-unknown
 
-# Install tailwindcss standalone CLI
-RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
+# Install tailwindcss standalone CLI (pinned to v3.x to match package.json)
+RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
     && chmod +x tailwindcss-linux-x64 \
     && mv tailwindcss-linux-x64 /usr/local/bin/tailwindcss \
     && echo '#!/bin/sh' > /usr/local/bin/npx \
     && echo 'while [ "$1" = "--yes" ] || [ "$1" = "tailwindcss" ]; do shift; done' >> /usr/local/bin/npx \
-    && echo 'exec tailwindcss "$@"' >> /usr/local/bin/npx \
+    && echo 'exec /usr/local/bin/tailwindcss "$@"' >> /usr/local/bin/npx \
     && chmod +x /usr/local/bin/npx
 
 WORKDIR /app
