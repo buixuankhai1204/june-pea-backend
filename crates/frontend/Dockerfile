@@ -31,11 +31,11 @@ RUN trunk build --release
 # Stage 2: Final Runtime (Nginx)
 # ==========================================
 FROM nginx:alpine
-ENV NGINX_ENVSUBST_FILTER='$PORT'
 RUN sed -i 's/worker_processes  auto;/worker_processes  1;/g' /etc/nginx/nginx.conf
 
 COPY --from=builder /app/crates/frontend/dist /usr/share/nginx/html
 COPY crates/frontend/nginx.conf /etc/nginx/templates/default.conf.template
 
+ENV PORT=80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/bin/sh", "-c", "envsubst '\\$PORT' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && exec nginx -g 'daemon off;'"]
