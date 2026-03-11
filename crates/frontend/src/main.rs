@@ -16,6 +16,7 @@ use pages::home::HomePage;
 use pages::login::LoginPage;
 use pages::orders::OrdersPage;
 use pages::product_detail::ProductDetailPage;
+use pages::dashboard::DashboardPage;
 use pages::products::ProductsPage;
 use pages::register::RegisterPage;
 use state::auth::AuthState;
@@ -44,6 +45,7 @@ fn App() -> impl IntoView {
                     <Route path=path!("/") view=HomePage />
                     <Route path=path!("/login") view=LoginPage />
                     <Route path=path!("/register") view=RegisterPage />
+                    <Route path=path!("/dashboard") view=DashboardPage />
                     <Route path=path!("/products") view=ProductsPage />
                     <Route path=path!("/products/:slug") view=ProductDetailPage />
                     <Route path=path!("/cart") view=CartPage />
