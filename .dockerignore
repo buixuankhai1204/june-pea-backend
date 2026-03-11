@@ -1,5 +1,7 @@
 target/
 **/*/dist/
+node_modules/
+crates/frontend/style/output.css
 .git/
 .idea/
 .env
