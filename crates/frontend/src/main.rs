@@ -10,6 +10,7 @@ use leptos_router::path;
 
 use components::auth_guard::AuthGuard;
 use components::layout::MainLayout;
+use components::admin_layout::AdminLayout;
 use pages::cart::CartPage;
 use pages::checkout::CheckoutPage;
 use pages::home::HomePage;
@@ -19,6 +20,14 @@ use pages::product_detail::ProductDetailPage;
 use pages::dashboard::DashboardPage;
 use pages::products::ProductsPage;
 use pages::register::RegisterPage;
+use pages::admin::dashboard::AdminDashboardPage;
+use pages::admin::orders::AdminOrdersPage;
+use pages::admin::suppliers::AdminSuppliersPage;
+use pages::admin::staff::AdminStaffPage;
+use pages::admin::payment_invoices::AdminPaymentInvoicesPage;
+use pages::admin::promotions::AdminPromotionsPage;
+use pages::admin::memberships::AdminMembershipsPage;
+use pages::admin::reports_analytics::AdminReportsAnalyticsPage;
 use state::auth::AuthState;
 use state::cart::CartState;
 
@@ -58,6 +67,48 @@ fn App() -> impl IntoView {
                         <AuthGuard>
                             <OrdersPage />
                         </AuthGuard>
+                    } />
+
+                    // Admin routes
+                    <Route path=path!("/admin") view=|| view! {
+                        <AdminLayout>
+                            <AdminDashboardPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/orders") view=|| view! {
+                        <AdminLayout>
+                            <AdminOrdersPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/suppliers") view=|| view! {
+                        <AdminLayout>
+                            <AdminSuppliersPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/staff") view=|| view! {
+                        <AdminLayout>
+                            <AdminStaffPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/payments") view=|| view! {
+                        <AdminLayout>
+                            <AdminPaymentInvoicesPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/promotions") view=|| view! {
+                        <AdminLayout>
+                            <AdminPromotionsPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/memberships") view=|| view! {
+                        <AdminLayout>
+                            <AdminMembershipsPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/reports") view=|| view! {
+                        <AdminLayout>
+                            <AdminReportsAnalyticsPage />
+                        </AdminLayout>
                     } />
                 </Routes>
             </MainLayout>

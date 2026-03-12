@@ -7,3 +7,4 @@ pub mod checkout;
 pub mod orders;
 pub mod home;
 pub mod dashboard;
+pub mod admin;
