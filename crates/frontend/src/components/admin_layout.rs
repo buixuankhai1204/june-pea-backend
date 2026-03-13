@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_location;
 
 // ── SVG Icons ──────────────────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ fn icon_chevron_down() -> impl IntoView {
 
 // ── Nav item data ──────────────────────────────────────────────────────────
 
+#[derive(Clone, Copy)]
 struct NavItem {
     label: &'static str,
     href:  &'static str,
@@ -171,14 +173,10 @@ pub fn AdminLayout(children: Children) -> impl IntoView {
         NavItem { label: "Settings", href: "/admin/settings", icon: 8 },
     ];
 
-    let current_path = move || {
-        web_sys::window()
-            .and_then(|w| w.location().pathname().ok())
-            .unwrap_or_default()
-    };
+    let location = use_location();
 
     let is_active = move |href: &'static str| {
-        let p = current_path();
+        let p = location.pathname.get();
         if href == "/admin" {
             p == "/admin" || p == "/admin/"
         } else {
@@ -216,22 +214,21 @@ pub fn AdminLayout(children: Children) -> impl IntoView {
                     <div>
                         <p class="px-2 mb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">"MAIN"</p>
                         <ul class="space-y-0.5">
-                            {main_nav.into_iter().map(|item| {
-                                let active = is_active(item.href);
+                            {main_nav.into_iter().map(move |item| {
                                 view! {
                                     <li>
                                         <a
                                             href={item.href}
                                             class=move || format!(
                                                 "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer group {}",
-                                                if active {
+                                                if is_active(item.href) {
                                                     "bg-[#FCE300] text-gray-900 shadow-sm"
                                                 } else {
                                                     "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                                                 }
                                             )
                                         >
-                                            <span class=move || if active { "text-gray-900" } else { "text-gray-400 group-hover:text-gray-700 transition-colors" }>
+                                            <span class=move || if is_active(item.href) { "text-gray-900" } else { "text-gray-400 group-hover:text-gray-700 transition-colors" }>
                                                 {nav_icon(item.icon)}
                                             </span>
                                             {item.label}
@@ -246,22 +243,21 @@ pub fn AdminLayout(children: Children) -> impl IntoView {
                     <div>
                         <p class="px-2 mb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">"ENGAGEMENT"</p>
                         <ul class="space-y-0.5">
-                            {engage_nav.into_iter().map(|item| {
-                                let active = is_active(item.href);
+                            {engage_nav.into_iter().map(move |item| {
                                 view! {
                                     <li>
                                         <a
                                             href={item.href}
                                             class=move || format!(
                                                 "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer group {}",
-                                                if active {
+                                                if is_active(item.href) {
                                                     "bg-[#FCE300] text-gray-900 shadow-sm"
                                                 } else {
                                                     "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                                                 }
                                             )
                                         >
-                                            <span class=move || if active { "text-gray-900" } else { "text-gray-400 group-hover:text-gray-700 transition-colors" }>
+                                            <span class=move || if is_active(item.href) { "text-gray-900" } else { "text-gray-400 group-hover:text-gray-700 transition-colors" }>
                                                 {nav_icon(item.icon)}
                                             </span>
                                             {item.label}
@@ -276,22 +272,21 @@ pub fn AdminLayout(children: Children) -> impl IntoView {
                     <div>
                         <p class="px-2 mb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">"OTHERS"</p>
                         <ul class="space-y-0.5">
-                            {other_nav.into_iter().map(|item| {
-                                let active = is_active(item.href);
+                            {other_nav.into_iter().map(move |item| {
                                 view! {
                                     <li>
                                         <a
                                             href={item.href}
                                             class=move || format!(
                                                 "flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer group {}",
-                                                if active {
+                                                if is_active(item.href) {
                                                     "bg-[#FCE300] text-gray-900 shadow-sm"
                                                 } else {
                                                     "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                                                 }
                                             )
                                         >
-                                            <span class=move || if active { "text-gray-900" } else { "text-gray-400 group-hover:text-gray-700 transition-colors" }>
+                                            <span class=move || if is_active(item.href) { "text-gray-900" } else { "text-gray-400 group-hover:text-gray-700 transition-colors" }>
                                                 {nav_icon(item.icon)}
                                             </span>
                                             {item.label}
