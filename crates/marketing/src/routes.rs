@@ -6,10 +6,13 @@ use shared::AppError;
 use std::sync::Arc;
 
 use crate::domain::model::Coupon;
-use crate::usecase::create_coupon::CreateCouponUsecase;
-use crate::usecase::deactivate_coupon::DeactivateCouponUsecase;
-use crate::usecase::list_coupons::ListCouponsUsecase;
-use crate::usecase::validate_coupon::ValidateCouponUsecase;
+use crate::usecase::{
+    create_coupon::CreateCouponUsecase,
+    deactivate_coupon::DeactivateCouponUsecase,
+    list_coupons::ListCouponsUsecase,
+    validate_coupon::ValidateCouponUsecase,
+    delete_coupon::DeleteCouponUsecase,
+};
 
 #[derive(Clone)]
 pub struct MarketingUsecase {
@@ -17,6 +20,7 @@ pub struct MarketingUsecase {
     validate_coupon: Arc<ValidateCouponUsecase>,
     list_coupons: Arc<ListCouponsUsecase>,
     deactivate_coupon: Arc<DeactivateCouponUsecase>,
+    delete_coupon: Arc<DeleteCouponUsecase>,
 }
 
 impl MarketingUsecase {
@@ -25,12 +29,14 @@ impl MarketingUsecase {
         validate_coupon: Arc<ValidateCouponUsecase>,
         list_coupons: Arc<ListCouponsUsecase>,
         deactivate_coupon: Arc<DeactivateCouponUsecase>,
+        delete_coupon: Arc<DeleteCouponUsecase>,
     ) -> Self {
         Self {
             create_coupon,
             validate_coupon,
             list_coupons,
             deactivate_coupon,
+            delete_coupon,
         }
     }
 
@@ -49,12 +55,17 @@ impl MarketingUsecase {
     pub fn deactivate_coupon(&self) -> Arc<DeactivateCouponUsecase> {
         self.deactivate_coupon.clone()
     }
+
+    pub fn delete_coupon(&self) -> Arc<DeleteCouponUsecase> {
+        self.delete_coupon.clone()
+    }
 }
 
 pub fn init() -> Router<MarketingUsecase> {
     Router::new()
-        .route("/coupons", post(create_coupon_handler))
         .route("/coupons", get(list_coupons_handler))
+        .route("/coupons", post(create_coupon_handler))
+        .route("/coupons/{code}", axum::routing::delete(delete_coupon_handler))
         .route("/coupons/{code}/validate", get(validate_coupon_handler))
         .route(
             "/coupons/{code}/deactivate",
@@ -116,6 +127,15 @@ async fn deactivate_coupon_handler(
     Path(code): Path<String>,
 ) -> Result<Json<bool>, AppError> {
     let usecase = state.deactivate_coupon();
+    usecase.execute(&code).await?;
+    Ok(Json(true))
+}
+
+async fn delete_coupon_handler(
+    State(state): State<MarketingUsecase>,
+    Path(code): Path<String>,
+) -> Result<Json<bool>, AppError> {
+    let usecase = state.delete_coupon();
     usecase.execute(&code).await?;
     Ok(Json(true))
 }

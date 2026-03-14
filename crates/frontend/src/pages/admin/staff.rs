@@ -1,3 +1,5 @@
+use crate::api::client::identity as identity_api;
+use crate::api::types::{RegisterRequest, User};
 use leptos::prelude::*;
 
 fn icon_plus() -> impl IntoView {
@@ -9,46 +11,40 @@ fn icon_plus() -> impl IntoView {
     }
 }
 
-fn gauge_small(pct: f64, color: &str) -> impl IntoView {
-    let r = 28.0_f64;
-    let circ = std::f64::consts::PI * r;
-    let dash = pct / 100.0 * circ;
-    let gap = circ - dash;
-    let color = color.to_string();
-    view! {
-        <div class="relative" style="width:72px;height:40px;overflow:hidden;">
-            <svg viewBox="0 0 72 40" style="width:72px;height:40px;">
-                <path d="M 8 36 A 28 28 0 0 1 64 36" fill="none" stroke="#F3F4F6" stroke-width="8" stroke-linecap="round"/>
-                <path d="M 8 36 A 28 28 0 0 1 64 36" fill="none" stroke={color} stroke-width="8" stroke-linecap="round"
-                    stroke-dasharray={format!("{:.2} {:.2}", dash, gap)}/>
-            </svg>
-            <div class="absolute inset-x-0 bottom-0 text-center">
-                <span class="text-xs font-black text-gray-900">{format!("{:.0}%", pct)}</span>
-            </div>
-        </div>
-    }
-}
-
-struct StaffMember {
-    name: &'static str,
-    role: &'static str,
-    dept: &'static str,
-    checkin: &'static str,
-    target: u32,
-    achieved: u32,
-    status: &'static str,
-}
-
 #[component]
 pub fn AdminStaffPage() -> impl IntoView {
-    let staff = vec![
-        StaffMember { name: "Nguyễn Văn An",   role: "Cashier",              dept: "Operations", checkin: "08:32", target: 1920, achieved: 1758, status: "Active" },
-        StaffMember { name: "Trần Thị Bình",   role: "Inventory Manager",    dept: "Warehouse",  checkin: "08:47", target: 1710, achieved: 1599, status: "Active" },
-        StaffMember { name: "Lê Hoàng Cường",  role: "Marketing Strategist", dept: "Marketing",  checkin: "09:12", target: 1540, achieved: 1212, status: "Late" },
-        StaffMember { name: "Phạm Thu Dung",   role: "Inventory Manager",    dept: "Warehouse",  checkin: "08:55", target: 1540, achieved: 1452, status: "Active" },
-        StaffMember { name: "Hoàng Minh Đức",  role: "Sales Associate",      dept: "Sales",      checkin: "--",    target: 1320, achieved: 0,    status: "Absent" },
-        StaffMember { name: "Vũ Thị Hoa",      role: "Customer Support",     dept: "CX",         checkin: "08:28", target: 1200, achieved: 1088, status: "Active" },
-    ];
+    let (show_create_modal, set_show_create_modal) = signal(false);
+    let (email, set_email) = signal(String::new());
+    let (password, set_password) = signal(String::new());
+
+    let users_resource: LocalResource<Vec<User>> = LocalResource::new(move || {
+        async move {
+            identity_api::list_users().await.unwrap_or_default()
+        }
+    });
+
+    let register_action = Action::new_local(|req: &RegisterRequest| {
+        let req = req.clone();
+        async move { identity_api::register(req).await }
+    });
+
+    let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
+        ev.prevent_default();
+        register_action.dispatch(RegisterRequest {
+            email: email.get(),
+            password: password.get(),
+            password_confirm: password.get(),
+        });
+    };
+
+    Effect::new(move |_| {
+        if register_action.value().get().is_some() {
+            set_show_create_modal.set(false);
+            set_email.set(String::new());
+            set_password.set(String::new());
+            users_resource.refetch();
+        }
+    });
 
     view! {
         <div class="p-6 space-y-6">
@@ -56,102 +52,114 @@ pub fn AdminStaffPage() -> impl IntoView {
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-black text-gray-900">"Staff Management"</h1>
-                    <p class="text-xs text-gray-400 mt-0.5">"Track attendance, performance and team targets"</p>
+                    <p class="text-xs text-gray-400 mt-0.5">"Manage user accounts and administrative rolls"</p>
                 </div>
-                <button class="flex items-center gap-1.5 bg-[#FCE300] hover:bg-yellow-400 text-gray-900 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer shadow-sm">
+                <button 
+                    on:click=move |_| set_show_create_modal.set(true)
+                    class="flex items-center gap-1.5 bg-[#FCE300] hover:bg-yellow-400 text-gray-900 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors cursor-pointer shadow-sm"
+                >
                     {icon_plus()} "Add Staff"
                 </button>
-            </div>
-
-            // Top row: KPI + Gauge
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                // KPI cards 2/3
-                <div class="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                        ("Total Staff", "24", "#6366F1", "bg-indigo-50 border-indigo-100"),
-                        ("Present",     "20", "#10B981", "bg-emerald-50 border-emerald-100"),
-                        ("On Leave",    "2",  "#F59E0B", "bg-amber-50 border-amber-100"),
-                        ("Absent",      "2",  "#F43F5E", "bg-rose-50 border-rose-100"),
-                    ].iter().map(|&(label, val, color, bg)| view! {
-                        <div class=format!("rounded-2xl p-5 border shadow-sm {}", bg)>
-                            <p class="text-xs text-gray-500 font-medium">{label}</p>
-                            <p class="text-3xl font-black mt-1.5" style={format!("color:{}", color)}>{val}</p>
-                        </div>
-                    }).collect_view()}
-                </div>
-
-                // Monthly target gauge 1/3
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col items-center justify-center">
-                    <p class="text-xs font-bold text-gray-700 mb-3">"Monthly Target"</p>
-                    <div class="relative flex items-center justify-center" style="width:128px;height:72px;overflow:hidden;">
-                        <svg viewBox="0 0 128 72" style="width:128px;height:72px;">
-                            <path d="M 10 64 A 54 54 0 0 1 118 64" fill="none" stroke="#F3F4F6" stroke-width="12" stroke-linecap="round"/>
-                            <path d="M 10 64 A 54 54 0 0 1 118 64" fill="none" stroke="#FCE300" stroke-width="12" stroke-linecap="round"
-                                stroke-dasharray="151.38 169.65"/>
-                        </svg>
-                        <div class="absolute bottom-0 inset-x-0 text-center pb-1">
-                            <span class="text-xl font-black text-gray-900">"88%"</span>
-                        </div>
-                    </div>
-                    <p class="text-xs text-emerald-500 font-semibold mt-2">"+4.5% vs last month"</p>
-                </div>
             </div>
 
             // Staff table
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                    <h2 class="text-sm font-bold text-gray-900">"Team Overview"</h2>
+                    <h2 class="text-sm font-bold text-gray-900">"User Overview"</h2>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs">
                         <thead>
                             <tr class="border-b border-gray-100 text-gray-400 uppercase tracking-wider text-[10px]">
-                                <th class="px-5 py-3 text-left font-medium">"Staff Member"</th>
-                                <th class="px-4 py-3 text-left font-medium hidden md:table-cell">"Department"</th>
-                                <th class="px-4 py-3 text-center font-medium hidden sm:table-cell">"Check-in"</th>
-                                <th class="px-4 py-3 text-center font-medium">"Performance"</th>
-                                <th class="px-4 py-3 text-center font-medium">"Status"</th>
+                                <th class="px-5 py-3 text-left font-medium">"User ID"</th>
+                                <th class="px-5 py-3 text-left font-medium">"Email"</th>
+                                <th class="px-4 py-3 text-center font-medium">"Role"</th>
+                                <th class="px-4 py-3 text-center font-medium">"Action"</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50">
-                            {staff.into_iter().map(|s| {
-                                let pct = if s.target > 0 { s.achieved as f64 / s.target as f64 * 100.0 } else { 0.0 };
-                                let (bg, text) = match s.status {
-                                    "Active" => ("bg-emerald-50 text-emerald-600 border-emerald-100", "Active"),
-                                    "Late"   => ("bg-amber-50 text-amber-600 border-amber-100",       "Late"),
-                                    _        => ("bg-rose-50 text-rose-600 border-rose-100",           "Absent"),
-                                };
-                                let gauge_color = if pct >= 90.0 { "#10B981" } else if pct >= 70.0 { "#FCE300" } else { "#F43F5E" };
-                                view! {
-                                    <tr class="hover:bg-gray-50 transition-colors duration-100">
-                                        <td class="px-5 py-3.5">
-                                            <div class="flex items-center gap-3">
-                                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                                                    {s.name.chars().next().unwrap_or('?').to_string()}
-                                                </div>
-                                                <div>
-                                                    <p class="font-semibold text-gray-900">{s.name}</p>
-                                                    <p class="text-gray-400 text-[11px]">{s.role}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-4 py-3.5 text-gray-600 hidden md:table-cell">{s.dept}</td>
-                                        <td class="px-4 py-3.5 text-center text-gray-500 font-mono hidden sm:table-cell">{s.checkin}</td>
-                                        <td class="px-4 py-3.5 text-center">
-                                            {gauge_small(pct, gauge_color)}
-                                        </td>
-                                        <td class="px-4 py-3.5 text-center">
-                                            <span class=format!("text-[10px] font-semibold px-2.5 py-1 rounded-full border {}", bg)>
-                                                {text}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                }
-                            }).collect_view()}
+                            <Suspense fallback=|| view! { <tr><td colspan="4" class="px-6 py-4 text-center">"Loading..."</td></tr> }>
+                                {move || users_resource.get().map(|list| {
+                                    list.iter().map(|u| {
+                                        let role_color = if u.role == "Admin" { "bg-indigo-50 text-indigo-600 border-indigo-100" } else { "bg-emerald-50 text-emerald-600 border-emerald-100" };
+                                        view! {
+                                            <tr class="hover:bg-gray-50 transition-colors duration-100">
+                                                <td class="px-5 py-3.5 font-mono text-gray-400">{u.id.to_string()[..8].to_string()}</td>
+                                                <td class="px-5 py-3.5">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-[10px] font-bold">
+                                                            {u.email.chars().next().unwrap_or('?').to_string().to_uppercase()}
+                                                        </div>
+                                                        <span class="font-semibold text-gray-900">{u.email.clone()}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <span class=format!("text-[10px] font-semibold px-2.5 py-1 rounded-full border {}", role_color)>
+                                                        {u.role.clone()}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3.5 text-center">
+                                                    <button class="text-gray-400 hover:text-rose-500 transition-colors">"Remove"</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }).collect_view()
+                                })}
+                            </Suspense>
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            // Create Modal
+            {move || show_create_modal.get().then(|| view! {
+                <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div class="p-6 border-b border-gray-50">
+                            <h3 class="text-xl font-black text-gray-900">"Add New Staff Member"</h3>
+                        </div>
+                        <form on:submit=on_submit class="p-6 space-y-4">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">"Email Address"</label>
+                                <input 
+                                    type="email" 
+                                    required
+                                    placeholder="staff@junepae.com" 
+                                    class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:ring-2 focus:ring-[#FCE300] outline-none transition-all text-sm"
+                                    on:input=move |ev| set_email.set(event_target_value(&ev))
+                                    prop:value=email
+                                />
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">"Initial Password"</label>
+                                <input 
+                                    type="password" 
+                                    required
+                                    placeholder="••••••••" 
+                                    class="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 focus:bg-white focus:ring-2 focus:ring-[#FCE300] outline-none transition-all text-sm"
+                                    on:input=move |ev| set_password.set(event_target_value(&ev))
+                                    prop:value=password
+                                />
+                            </div>
+                            <div class="flex gap-3 pt-4">
+                                <button 
+                                    type="button"
+                                    class="flex-1 px-6 py-3 rounded-2xl font-bold text-gray-500 hover:bg-gray-50 transition-all cursor-pointer"
+                                    on:click=move |_| set_show_create_modal.set(false)
+                                >
+                                    "Cancel"
+                                </button>
+                                <button 
+                                    type="submit"
+                                    class="flex-1 px-6 py-3 rounded-2xl bg-[#FCE300] hover:bg-yellow-400 text-gray-900 font-bold transition-all shadow-lg cursor-pointer"
+                                >
+                                    "Add Staff"
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            })}
         </div>
     }
 }

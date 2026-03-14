@@ -6,6 +6,8 @@ use uuid::Uuid;
 
 pub struct PostgresInventoryRepository;
 
+use crate::domain::model::Stock;
+
 #[async_trait]
 impl InventoryRepository for PostgresInventoryRepository {
     async fn get_stock(
@@ -59,5 +61,25 @@ impl InventoryRepository for PostgresInventoryRepository {
             .map_err(|e| AppError::Database(e))?;
 
         Ok(())
+    }
+
+    async fn list_all_stocks(
+        &self,
+        exec: &mut dyn DbExecutor,
+    ) -> Result<Vec<Stock>, AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        let rows = sqlx::query("SELECT variant_id, quantity FROM inventory.stock")
+            .fetch_all(&mut *executor.tx)
+            .await
+            .map_err(|e| AppError::Database(e))?;
+
+        Ok(rows
+            .into_iter()
+            .map(|r| Stock {
+                variant_id: r.try_get("variant_id").unwrap(),
+                quantity: r.try_get("quantity").unwrap(),
+            })
+            .collect())
     }
 }

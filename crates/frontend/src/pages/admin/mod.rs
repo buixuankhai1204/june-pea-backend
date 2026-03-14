@@ -6,3 +6,6 @@ pub mod payment_invoices;
 pub mod promotions;
 pub mod memberships;
 pub mod reports_analytics;
+pub mod categories;
+pub mod products;
+pub mod inventory;

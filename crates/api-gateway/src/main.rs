@@ -20,15 +20,25 @@ mod middleware;
 #[derive(Clone)]
 pub struct AppState {
     pub auth_service: Arc<AuthUsecase>,
-    pub catalog_service: Arc<CatalogUsecase>, // Placeholder cho CatalogService
+    pub catalog_service: Arc<CatalogUsecase>,
     pub inventory_usecase: Arc<InventoryUsecase>,
     pub marketing_usecase: Arc<marketing::routes::MarketingUsecase>,
     pub ordering_usecase: Arc<ordering::routes::OrderingUsecase>,
+    pub user_repo: Arc<PostgresUserRepository>,
 }
 
 impl IdentityState for AppState {
     fn auth_service(&self) -> Arc<AuthUsecase> {
         self.auth_service.clone()
+    }
+    fn get_me_usecase(&self) -> Arc<identify::usecase::get_me::GetMeUsecase> {
+        Arc::new(identify::usecase::get_me::GetMeUsecase::new(self.user_repo.clone()))
+    }
+    fn update_profile_usecase(&self) -> Arc<identify::usecase::update_profile::UpdateProfileUsecase> {
+        Arc::new(identify::usecase::update_profile::UpdateProfileUsecase::new(self.user_repo.clone()))
+    }
+    fn list_users_usecase(&self) -> Arc<identify::usecase::list_users::ListUsersUsecase> {
+        Arc::new(identify::usecase::list_users::ListUsersUsecase::new(self.user_repo.clone()))
     }
 }
 
@@ -47,8 +57,8 @@ async fn main() -> anyhow::Result<()> {
     print!("Connecting to Redis at {}... ", redis_url);
 
     let user_repo = Arc::new(PostgresUserRepository::new(Arc::new(pool.clone())));
-    let catalog_repo = Arc::new(PostgresCatalogRepository::new(Arc::new(pool.clone()))); // Placeholder cho CatalogRepository
-    let auth_usecases = Arc::new(AuthUsecase::new(user_repo));
+    let catalog_repo = Arc::new(PostgresCatalogRepository::new(Arc::new(pool.clone()))); 
+    let auth_usecases = Arc::new(AuthUsecase::new(user_repo.clone()));
     let redis = Arc::new(RedisCatalogCache::new(&redis_url).await?);
     let postgrese_unit_of_work = Arc::new(
         shared::infrastructure::postgres::PostgresUnitOfWork::new(pool.clone()),
@@ -61,9 +71,15 @@ async fn main() -> anyhow::Result<()> {
     ));
 
     // Catalog
+    let delete_product = Arc::new(catalog::usecase::delete_product::DeleteProductUsecase::new(
+        catalog_repo.clone(),
+    ));
+    let delete_category = Arc::new(catalog::usecase::delete_category::DeleteCategoryUsecase::new(
+        catalog_repo.clone(),
+    ));
     let catalog_usecases = Arc::new(CatalogUsecase::new(
         catalog_repo,
-        redis, // Placeholder cho CatalogRepository
+        redis,
     ));
 
     // Marketing
@@ -89,11 +105,16 @@ async fn main() -> anyhow::Result<()> {
             postgrese_unit_of_work.clone(),
         ),
     );
+    let delete_coupon = Arc::new(marketing::usecase::delete_coupon::DeleteCouponUsecase::new(
+        marketing_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
     let marketing_usecases = Arc::new(marketing::routes::MarketingUsecase::new(
         create_coupon,
         validate_coupon,
         list_coupons,
         deactivate_coupon,
+        delete_coupon,
     ));
 
     // Ordering
@@ -116,12 +137,23 @@ async fn main() -> anyhow::Result<()> {
         ordering_repo.clone(),
         postgrese_unit_of_work.clone(),
     ));
+    let list_all_orders = Arc::new(ordering::usecase::list_all_orders::ListAllOrdersUsecase::new(
+        ordering_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
+    let update_order_status = Arc::new(ordering::usecase::update_order_status::UpdateOrderStatusUsecase::new(
+        ordering_repo.clone(),
+        postgrese_unit_of_work.clone(),
+    ));
     let ordering_usecases = Arc::new(ordering::routes::OrderingUsecase::new(
         place_order,
         cancel_order,
         get_order,
         list_orders,
+        update_order_status,
+        list_all_orders,
     ));
+
 
     let marketing_router =
         marketing::routes::init().with_state(marketing_usecases.as_ref().clone());
@@ -136,6 +168,7 @@ async fn main() -> anyhow::Result<()> {
         inventory_usecase: inventory_usecases,
         marketing_usecase: marketing_usecases,
         ordering_usecase: ordering_usecases,
+        user_repo: user_repo,
     };
 
     tracing::info!("Running database migrations...");
@@ -166,12 +199,23 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             tower_http::cors::CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any),
+                .allow_methods([
+                    axum::http::Method::GET,
+                    axum::http::Method::POST,
+                    axum::http::Method::PUT,
+                    axum::http::Method::PATCH,
+                    axum::http::Method::DELETE,
+                    axum::http::Method::OPTIONS,
+                ])
+                .allow_headers([
+                    axum::http::header::AUTHORIZATION,
+                    axum::http::header::CONTENT_TYPE,
+                    axum::http::header::ACCEPT,
+                ]),
         )
         .with_state(state); 
 
-    let addr = "0.0.0.0:8080";
+    let addr = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!("🚀 Yame Ecommerce Core started at {}", addr);
     axum::serve(listener, app).await?;

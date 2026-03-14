@@ -141,8 +141,8 @@ fn sparkline(points: &[f64], color: &str, fill: &str) -> impl IntoView {
 
 fn donut_chart(segments: Vec<(&'static str, f64, &'static str)>) -> impl IntoView {
     let total: f64 = segments.iter().map(|(_, v, _)| v).sum();
-    let cx = 60.0_f64;
-    let cy = 60.0_f64;
+    let _cx = 60.0_f64;
+    let _cy = 60.0_f64;
     let r  = 48.0_f64;
     let circumference = 2.0 * std::f64::consts::PI * r;
 

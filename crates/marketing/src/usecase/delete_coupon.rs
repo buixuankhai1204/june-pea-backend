@@ -13,11 +13,13 @@ impl DeleteCouponUsecase {
         Self { repo, uow }
     }
 
-    pub async fn execute(&self, coupon_id: Uuid) -> Result<(), AppError> {
+    pub async fn execute(&self, code: &str) -> Result<(), AppError> {
         let repo = self.repo.clone();
+        let code_str = code.to_string();
         self.uow.run_atomic(Box::new(move |exec| {
             Box::pin(async move {
-                repo.delete_coupon(exec, coupon_id).await
+                let coupon = repo.get_coupon_by_code(exec, &code_str).await?;
+                repo.delete_coupon(exec, coupon.id).await
             })
         })).await
     }

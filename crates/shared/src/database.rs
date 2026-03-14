@@ -11,8 +11,11 @@ pub trait DbExecutor: Send + Sync {
 pub trait UnitOfWork: Send + Sync {
     async fn run_atomic(
         &self,
-        // Change: We wrap the function in an Arc or use a reference 
-        // that matches the lifetime of the future.
+        f: Box<dyn for<'a> FnOnce(&'a mut dyn DbExecutor) -> BoxFuture<'a, Result<(), AppError>> + Send>,
+    ) -> Result<(), AppError>;
+
+    async fn run_read_only(
+        &self,
         f: Box<dyn for<'a> FnOnce(&'a mut dyn DbExecutor) -> BoxFuture<'a, Result<(), AppError>> + Send>,
     ) -> Result<(), AppError>;
 }

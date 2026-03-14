@@ -12,4 +12,6 @@ pub trait CatalogRepository: Send + Sync {
     async fn list_categories(&self) -> Result<Vec<(Uuid, String, String, Option<Uuid>)>, AppError>;
     async fn create_product(&self, id: Uuid, category_id: Uuid, name: &str, slug: &str, description: Option<&str>) -> Result<(), AppError>;
     async fn update_product(&self, id: Uuid, category_id: Uuid, name: &str, slug: &str, description: Option<&str>) -> Result<(), AppError>;
+    async fn delete_product(&self, id: Uuid) -> Result<(), AppError>;
+    async fn delete_category(&self, id: Uuid) -> Result<(), AppError>;
 }

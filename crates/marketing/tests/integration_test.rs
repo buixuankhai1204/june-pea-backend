@@ -80,7 +80,7 @@ async fn e2e_delete_coupon_works(pool: PgPool) {
     let coupon = ctx.create_coupon.execute(code.clone(), 5000, 1).await.unwrap();
 
     // 2. Delete
-    ctx.delete_coupon.execute(coupon.id).await.unwrap();
+    ctx.delete_coupon.execute(&code).await.unwrap();
 
     // 3. Verify gone
     let result = ctx.validate_coupon.execute(&code).await;

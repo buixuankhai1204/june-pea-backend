@@ -19,6 +19,7 @@ use pages::orders::OrdersPage;
 use pages::product_detail::ProductDetailPage;
 use pages::dashboard::DashboardPage;
 use pages::products::ProductsPage;
+use pages::profile::ProfilePage;
 use pages::register::RegisterPage;
 use pages::admin::dashboard::AdminDashboardPage;
 use pages::admin::orders::AdminOrdersPage;
@@ -28,6 +29,9 @@ use pages::admin::payment_invoices::AdminPaymentInvoicesPage;
 use pages::admin::promotions::AdminPromotionsPage;
 use pages::admin::memberships::AdminMembershipsPage;
 use pages::admin::reports_analytics::AdminReportsAnalyticsPage;
+use pages::admin::categories::AdminCategoriesPage;
+use pages::admin::products::AdminProductsPage;
+use pages::admin::inventory::AdminInventoryPage;
 use state::auth::AuthState;
 use state::cart::CartState;
 
@@ -54,6 +58,11 @@ fn App() -> impl IntoView {
                     <Route path=path!("/") view=HomePage />
                     <Route path=path!("/login") view=LoginPage />
                     <Route path=path!("/register") view=RegisterPage />
+                    <Route path=path!("/profile") view=|| view! {
+                        <AuthGuard>
+                            <ProfilePage />
+                        </AuthGuard>
+                    } />
                     <Route path=path!("/dashboard") view=DashboardPage />
                     <Route path=path!("/products") view=ProductsPage />
                     <Route path=path!("/products/:slug") view=ProductDetailPage />
@@ -108,6 +117,21 @@ fn App() -> impl IntoView {
                     <Route path=path!("/admin/reports") view=|| view! {
                         <AdminLayout>
                             <AdminReportsAnalyticsPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/categories") view=|| view! {
+                        <AdminLayout>
+                            <AdminCategoriesPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/catalog") view=|| view! {
+                        <AdminLayout>
+                            <AdminProductsPage />
+                        </AdminLayout>
+                    } />
+                    <Route path=path!("/admin/stock") view=|| view! {
+                        <AdminLayout>
+                            <AdminInventoryPage />
                         </AdminLayout>
                     } />
                 </Routes>

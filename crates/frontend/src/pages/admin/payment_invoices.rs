@@ -82,7 +82,7 @@ pub fn AdminPaymentInvoicesPage() -> impl IntoView {
                             </thead>
                             <tbody class="divide-y divide-gray-50">
                                 {invoices.into_iter().map(|inv| {
-                                    let (badge_bg) = match inv.status {
+                                    let badge_bg = match inv.status {
                                         "Paid"    => "bg-emerald-50 text-emerald-600 border-emerald-100",
                                         "Pending" => "bg-amber-50 text-amber-600 border-amber-100",
                                         _         => "bg-rose-50 text-rose-600 border-rose-100",

@@ -37,14 +37,14 @@ async fn e2e_create_category_and_product_works(pool: PgPool) {
     // 1. Create Category
     let category_id = ctx.create_category.execute(
         "Electronics".to_string(),
-        format!("electronics-{}", Uuid::new_v4()),
+        Some(format!("electronics-{}", Uuid::new_v4())),
         None
     ).await.unwrap();
 
     // 2. Create Product in that category
     let product_id = ctx.create_product.execute(
         "Smartphone".to_string(),
-        format!("smartphone-{}", Uuid::new_v4()),
+        Some(format!("smartphone-{}", Uuid::new_v4())),
         category_id,
         Some("A high-end smartphone".to_string())
     ).await.unwrap();
@@ -68,7 +68,7 @@ async fn e2e_create_category_and_product_works(pool: PgPool) {
     ctx.update_product.execute(
         product_id,
         updated_name.clone(),
-        format!("smartphone-pro-{}", Uuid::new_v4()),
+        Some(format!("smartphone-pro-{}", Uuid::new_v4())),
         category_id,
         Some("Updated description".to_string())
     ).await.unwrap();

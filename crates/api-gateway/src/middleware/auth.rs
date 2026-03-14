@@ -11,6 +11,10 @@ pub async fn auth_middleware(
     mut req: Request,
     next: Next,
 ) -> Result<Response, AppError> {
+    if req.method() == axum::http::Method::OPTIONS {
+        return Ok(next.run(req).await);
+    }
+
     let auth_header = req.headers()
         .get(AUTHORIZATION)
         .and_then(|h| h.to_str().ok())

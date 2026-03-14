@@ -108,4 +108,20 @@ impl CatalogRepository for PostgresCatalogRepository {
             .await?;
         Ok(())
     }
+
+    async fn delete_product(&self, id: Uuid) -> Result<(), AppError> {
+        sqlx::query("DELETE FROM catalog.products WHERE id = $1")
+            .bind(id)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn delete_category(&self, id: Uuid) -> Result<(), AppError> {
+        sqlx::query("DELETE FROM catalog.categories WHERE id = $1")
+            .bind(id)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
 }

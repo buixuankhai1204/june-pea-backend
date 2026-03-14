@@ -1,10 +1,11 @@
 pub mod login;
 pub mod register;
-pub mod products;
+pub mod orders;
+pub mod profile;
 pub mod product_detail;
+pub mod products;
 pub mod cart;
 pub mod checkout;
-pub mod orders;
 pub mod home;
 pub mod dashboard;
 pub mod admin;

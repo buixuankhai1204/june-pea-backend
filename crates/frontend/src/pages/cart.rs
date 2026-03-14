@@ -6,13 +6,11 @@ fn format_cents(cents: i64) -> String {
     // Simple VND formatter
     let s = cents.to_string();
     let mut result = String::new();
-    let mut count = 0;
-    for c in s.chars().rev() {
+    for (count, c) in s.chars().rev().enumerate() {
         if count != 0 && count % 3 == 0 {
             result.push('.');
         }
         result.push(c);
-        count += 1;
     }
     format!("{} VND", result.chars().rev().collect::<String>())
 }
@@ -61,9 +59,9 @@ pub fn CartPage() -> impl IntoView {
                                     {items.into_iter().map(|item| {
                                         let vid = item.variant_id;
                                         let qty = item.quantity;
-                                        let cart_inc = cart.clone();
-                                        let cart_dec = cart.clone();
-                                        let cart_rm = cart.clone();
+                                        let cart_inc = cart;
+                                        let cart_dec = cart;
+                                        let cart_rm = cart;
 
                                         view! {
                                             <div class="flex flex-row items-start gap-4 p-4 bg-white rounded-sm border border-gray-200 hover:border-gray-300 transition-colors">
