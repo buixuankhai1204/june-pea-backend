@@ -8,4 +8,6 @@ pub trait UserRepository: Send + Sync {
     async fn create_user(&self, user: &User) -> Result<(), AppError>;
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, AppError>;
+    async fn update_user(&self, user: &User) -> Result<(), AppError>;
+    async fn list_users(&self) -> Result<Vec<User>, AppError>;
 }

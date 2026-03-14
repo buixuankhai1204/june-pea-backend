@@ -8,6 +8,7 @@ use inventory::{
         decrease_stock::DecreaseStockUsecase,
         increase_stock::IncreaseStockUsecase,
         get_stock::GetStockUsecase,
+        update_stock::UpdateStockUsecase,
     },
 };
 use shared::{error::AppError, infrastructure::postgres::PostgresUnitOfWork};
@@ -16,6 +17,7 @@ struct TestContext {
     decrease_stock: DecreaseStockUsecase,
     increase_stock: IncreaseStockUsecase,
     get_stock: GetStockUsecase,
+    update_stock: UpdateStockUsecase,
 }
 
 impl TestContext {
@@ -26,7 +28,8 @@ impl TestContext {
         Self {
             decrease_stock: DecreaseStockUsecase::new(repo.clone(), uow.clone()),
             increase_stock: IncreaseStockUsecase::new(repo.clone(), uow.clone()),
-            get_stock: GetStockUsecase::new(repo, uow),
+            get_stock: GetStockUsecase::new(repo.clone(), uow.clone()),
+            update_stock: UpdateStockUsecase::new(repo, uow),
         }
     }
 }
@@ -129,4 +132,19 @@ async fn e2e_decrease_stock_insufficient(pool: PgPool) {
     // Validate stock remains unchanged
     let stock_quantity = ctx.get_stock.execute(variant_id).await.unwrap();
     assert_eq!(stock_quantity, 50);
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn e2e_update_stock_works(pool: PgPool) {
+    let ctx = TestContext::new(pool.clone());
+    let variant_id = Uuid::new_v4();
+    
+    inject_stock(&pool, variant_id, 100).await;
+
+    // Update to absolute value
+    ctx.update_stock.execute(variant_id, 500).await.unwrap();
+
+    // Validate
+    let stock_quantity = ctx.get_stock.execute(variant_id).await.unwrap();
+    assert_eq!(stock_quantity, 500);
 }

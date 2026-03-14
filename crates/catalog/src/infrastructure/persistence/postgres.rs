@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use async_trait::async_trait;
 use shared::AppError;
+use uuid::Uuid;
 use crate::domain::catalog_repository::CatalogRepository;
 use crate::domain::model::{Product, ProductVariant, ProductWithVariants};
 
@@ -56,5 +57,55 @@ impl CatalogRepository for PostgresCatalogRepository {
             .fetch_one(&*self.pool)
             .await?;
         Ok(row.0)
+    }
+
+    async fn create_category(&self, id: Uuid, name: &str, slug: &str, parent_id: Option<Uuid>) -> Result<(), AppError> {
+        sqlx::query(
+            "INSERT INTO catalog.categories (id, name, slug, parent_id) VALUES ($1, $2, $3, $4)"
+        )
+            .bind(id)
+            .bind(name)
+            .bind(slug)
+            .bind(parent_id)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn list_categories(&self) -> Result<Vec<(Uuid, String, String, Option<Uuid>)>, AppError> {
+        let rows = sqlx::query_as::<_, (Uuid, String, String, Option<Uuid>)>(
+            "SELECT id, name, slug, parent_id FROM catalog.categories ORDER BY name"
+        )
+            .fetch_all(&*self.pool)
+            .await?;
+        Ok(rows)
+    }
+
+    async fn create_product(&self, id: Uuid, category_id: Uuid, name: &str, slug: &str, description: Option<&str>) -> Result<(), AppError> {
+        sqlx::query(
+            "INSERT INTO catalog.products (id, category_id, name, slug, description) VALUES ($1, $2, $3, $4, $5)"
+        )
+            .bind(id)
+            .bind(category_id)
+            .bind(name)
+            .bind(slug)
+            .bind(description)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn update_product(&self, id: Uuid, category_id: Uuid, name: &str, slug: &str, description: Option<&str>) -> Result<(), AppError> {
+        sqlx::query(
+            "UPDATE catalog.products SET category_id = $1, name = $2, slug = $3, description = $4 WHERE id = $5"
+        )
+            .bind(category_id)
+            .bind(name)
+            .bind(slug)
+            .bind(description)
+            .bind(id)
+            .execute(&*self.pool)
+            .await?;
+        Ok(())
     }
 }

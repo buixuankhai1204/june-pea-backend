@@ -20,7 +20,8 @@ use ordering::{
     infrastructure::persistence::postgres::PostgresOrderRepository,
     usecase::{
         cancel_order::CancelOrderUsecase, get_order::GetOrderUsecase,
-        place_order::PlaceOrderUsecase,
+        list_orders::ListOrdersUsecase, place_order::PlaceOrderUsecase,
+        update_order_status::UpdateOrderStatusUsecase,
     },
 };
 use shared::{error::AppError, infrastructure::postgres::PostgresUnitOfWork};
@@ -34,6 +35,8 @@ struct TestContext {
     place_order: PlaceOrderUsecase,
     cancel_order: CancelOrderUsecase,
     get_order: GetOrderUsecase,
+    list_orders: ListOrdersUsecase,
+    update_order_status: UpdateOrderStatusUsecase,
 }
 
 impl TestContext {
@@ -45,6 +48,8 @@ impl TestContext {
             place_order: PlaceOrderUsecase::new(repo.clone(), uow.clone()),
             cancel_order: CancelOrderUsecase::new(repo.clone(), uow.clone()),
             get_order: GetOrderUsecase::new(repo.clone(), uow.clone()),
+            list_orders: ListOrdersUsecase::new(repo.clone(), uow.clone()),
+            update_order_status: UpdateOrderStatusUsecase::new(repo, uow),
         }
     }
 }
@@ -242,8 +247,13 @@ async fn e2e_cancel_pending_order_sets_cancelled_status(pool: PgPool) {
 
     ctx.cancel_order.execute(order_id).await.unwrap();
 
-    let order = ctx.get_order.execute(order_id).await.unwrap();
-    assert_eq!(order.status, OrderStatus::Cancelled);
+    let fetched = ctx.get_order.execute(order_id).await.unwrap();
+    assert_eq!(fetched.status, OrderStatus::Cancelled);
+
+    // 4. Update to Completed
+    ctx.update_order_status.execute(order_id, OrderStatus::Completed).await.unwrap();
+    let fetched = ctx.get_order.execute(order_id).await.unwrap();
+    assert_eq!(fetched.status, OrderStatus::Completed);
 }
 
 #[sqlx::test(migrations = "../../migrations")]

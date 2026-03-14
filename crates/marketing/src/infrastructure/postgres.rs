@@ -108,4 +108,19 @@ impl CouponRepository for PostgresCouponRepository {
 
         Ok(rows)
     }
+
+    async fn delete_coupon(&self, exec: &mut dyn DbExecutor, id: uuid::Uuid) -> Result<(), AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        sqlx::query("DELETE FROM marketing.coupons WHERE id = $1")
+            .bind(id)
+            .execute(&mut *executor.tx)
+            .await
+            .map_err(|e| match e {
+                sqlx::Error::RowNotFound => AppError::NotFound(format!("Coupon {} not found", id)),
+                _ => AppError::InternalServerError,
+            })?;
+
+        Ok(())
+    }
 }
