@@ -11,4 +11,4 @@ command = "npx"
 command_arguments = ["--yes", "tailwindcss", "-i", "style/input.css", "-o", "style/output.css", "--minify"]
 
 [[proxy]]
-backend = "http://127.0.0.1:3000/api"
+backend = "https://june-pea-backend-production.up.railway.app:3000/api"
