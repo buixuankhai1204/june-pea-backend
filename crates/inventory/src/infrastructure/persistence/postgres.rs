@@ -8,6 +8,23 @@ pub struct PostgresInventoryRepository;
 
 #[async_trait]
 impl InventoryRepository for PostgresInventoryRepository {
+    async fn get_stock(
+        &self,
+        exec: &mut dyn DbExecutor,
+        id: Uuid,
+    ) -> Result<i32, AppError> {
+        let executor = SqlxExecutor::from_executor(exec);
+
+        let row =
+            sqlx::query("SELECT quantity FROM inventory.stock WHERE variant_id = $1")
+                .bind(id)
+                .fetch_optional(&mut *executor.tx)
+                .await
+                .map_err(|e| AppError::Database(e))?;
+
+        Ok(row.map(|r| r.try_get("quantity").unwrap_or(0)).unwrap_or(0))
+    }
+
     async fn get_stock_for_update(
         &self,
         exec: &mut dyn DbExecutor,
@@ -17,13 +34,13 @@ impl InventoryRepository for PostgresInventoryRepository {
         let executor = SqlxExecutor::from_executor(exec);
 
         let row =
-            sqlx::query("SELECT quantity FROM inventory.stocks WHERE variant_id = $1 FOR UPDATE")
+            sqlx::query("SELECT quantity FROM inventory.stock WHERE variant_id = $1 FOR UPDATE")
                 .bind(id)
-                .fetch_one(&mut *executor.tx)
+                .fetch_optional(&mut *executor.tx)
                 .await
-                .map_err(|_| AppError::InternalServerError)?;
+                .map_err(|e| AppError::Database(e))?;
 
-        Ok(row.try_get("quantity").unwrap_or(0))
+        Ok(row.map(|r| r.try_get("quantity").unwrap_or(0)).unwrap_or(0))
     }
 
     async fn update_stock(
@@ -34,12 +51,12 @@ impl InventoryRepository for PostgresInventoryRepository {
     ) -> Result<(), AppError> {
         let executor = SqlxExecutor::from_executor(exec);
 
-        sqlx::query("UPDATE inventory.stocks SET quantity = $1 WHERE variant_id = $2")
+        sqlx::query("UPDATE inventory.stock SET quantity = $1 WHERE variant_id = $2")
             .bind(quantity)
             .bind(id)
             .execute(&mut *executor.tx)
             .await
-            .map_err(|_| AppError::InternalServerError)?;
+            .map_err(|e| AppError::Database(e))?;
 
         Ok(())
     }
